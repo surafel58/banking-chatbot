@@ -1,11 +1,11 @@
 # Banking Customer Support Chatbot
 
-An AI-powered conversational assistant for banking customer support, built with Next.js 16, Google Gemini 2.5 Flash, and Supabase. Features RAG (Retrieval Augmented Generation) for accurate knowledge-based responses, intent detection, and seamless human handoff capabilities.
+An AI-powered conversational assistant for banking customer support, built with Next.js 16, Google Gemini 2.5 Flash, and Supabase. Features Agentic RAG (AI-controlled knowledge retrieval with vector search) for accurate responses, intent detection, and seamless human handoff capabilities.
 
 ## 🎯 Features
 
 - **Real-time Streaming Responses**: Powered by Vercel AI SDK v5 and Google Gemini 2.5 Flash
-- **RAG System**: Vector similarity search with Supabase pgvector for accurate knowledge retrieval
+- **Agentic RAG System**: Tool-based knowledge retrieval with vector search and re-ranking
 - **Intent Detection**: Pattern-based classification for user queries
 - **Banking Operations**: Card management, balance checking, transaction viewing, branch locator
 - **Human Handoff**: Intelligent escalation to human agents when needed
