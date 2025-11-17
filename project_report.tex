@@ -1,0 +1,863 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage[colorlinks=true, linkcolor=black, citecolor=black, urlcolor=blue]{hyperref}
+
+% Code listing settings
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray}
+}
+
+% Title information
+\title{\textbf{AI-Powered Banking Customer Support Chatbot}\\
+\large An Agentic RAG System for Automated Customer Service}
+\author{Surafel Sentayehu - GSR/5928/17}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+This report presents the design and implementation of an AI-powered banking customer support chatbot system that leverages modern artificial intelligence techniques to provide automated customer service. The system employs an Agentic Retrieval Augmented Generation (RAG) architecture, combining large language models (LLMs), vector embeddings, and tool-calling capabilities to handle banking queries. Built using Next.js 16, Google Gemini 2.5 Flash, and Supabase PostgreSQL with pgvector extension, the chatbot demonstrates the practical application of conversational AI in the financial services sector.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+\subsection{Background and Motivation}
+
+The banking industry faces increasing pressure to provide instant, accurate customer support while managing operational costs. Traditional call centers struggle with high call volumes, long wait times, and inconsistent service quality \cite{marak2025factors}.
+\\
+
+According to recent industry statistics, customer service inquiries account for a significant portion of operational expenses, with average handle times ranging from 5-10 minutes per interaction \cite{hasan2023adoption}. Banking customers require immediate assistance for various needs including account inquiries, card management, transaction disputes, and general banking questions.
+\\
+
+Artificial intelligence has emerged as a transformative solution to these challenges. Modern large language models (LLMs) combined with Retrieval Augmented Generation (RAG) techniques enable chatbots to provide human-like conversations while grounding responses in factual information \cite{nie2024survey}. The integration of agentic capabilities, where AI systems can autonomously decide which tools to use and actions to take, represents the next evolution in conversational AI.
+\\
+
+This project implements a comprehensive banking customer support chatbot that demonstrates these advanced AI capabilities in a practical, production-ready system \cite{ramos2025adoption}.
+
+\subsection{Problem Statement}
+
+Traditional banking support channels face several limitations:
+\\
+
+\begin{itemize}
+    \item Limited availability (typically business hours only)
+    \item Long wait times during peak periods
+    \item Inconsistent information quality depending on agent expertise
+    \item High operational costs for staffing call centers
+    \item Difficulty scaling to handle volume spikes
+    \item Language barriers in diverse customer populations
+\end{itemize}
+
+These limitations result in customer frustration, decreased satisfaction scores, and increased operational expenses for financial institutions.
+
+\subsection{Project Objectives}
+
+The primary objectives of this project are:
+\\
+
+\begin{enumerate}
+    \item Design and implement an AI-powered chatbot capable of handling common banking customer service inquiries
+    \item Integrate Agentic RAG architecture for accurate, grounded responses
+    \item Implement tool-calling capabilities for actual banking operations
+    \item Provide seamless escalation to human agents when necessary
+    \item Demonstrate scalability for production deployment
+\end{enumerate}
+
+\subsection{Project Scope}
+
+This implementation covers:
+\\
+
+\textbf{In Scope:}
+\begin{itemize}
+    \item Natural language understanding and conversation management
+    \item Vector-based semantic search for knowledge retrieval
+    \item Multiple banking operation tools (card management, balance checking, location finding)
+    \item Intent detection and entity extraction
+    \item Human handoff system
+    \item Real-time streaming responses
+\end{itemize}
+
+\textbf{Out of Scope:}
+\begin{itemize}
+    \item Integration with actual banking core systems
+    \item Production-level authentication and authorization
+    \item Multi-language support (English only in current version)
+    \item Voice interface capabilities
+    \item Mobile application development
+\end{itemize}
+
+\section{System Architecture}
+
+\subsection{High-Level Architecture}
+
+The system follows a modern three-tier architecture consisting of presentation layer, application layer, and data layer. The architecture is designed for scalability, performance, maintainability, and extensibility.
+\\
+
+The main components include:
+\\
+
+\begin{itemize}
+    \item \textbf{Client Layer}: Next.js frontend with React components
+    \item \textbf{API Layer}: Next.js API routes and business logic
+    \item \textbf{AI Services}: LLM, embeddings, and RAG pipeline
+    \item \textbf{Data Layer}: PostgreSQL database with vector extensions
+\end{itemize}
+
+\subsection{Component Overview}
+
+\subsubsection{Presentation Layer}
+
+The frontend is built using Next.js 16 \cite{nextjs2024} with React 19.2 and TypeScript 5. Key components include:
+\\
+
+\begin{itemize}
+    \item \textbf{ChatInterface}: Main conversation component with message history
+    \item \textbf{MessageBubble}: Individual message rendering with role-based styling
+    \item \textbf{TypingIndicator}: Real-time loading states during AI processing
+    \item \textbf{QuickReplies}: Suggested actions for common queries
+\end{itemize}
+
+The UI leverages Tailwind CSS v4 for responsive, modern styling and shadcn/ui for accessible component primitives.
+
+\subsubsection{Application Layer}
+
+The backend consists of Next.js API routes implementing:
+\\
+
+\begin{itemize}
+    \item \textbf{Chat Endpoint} (/api/chat): Main conversation handler
+    \item \textbf{Authentication Routes} (/api/auth): Security verification
+    \item \textbf{Handoff System} (/api/handoff): Human agent escalation
+    \item \textbf{Knowledge Management} (/api/knowledge): Document ingestion
+\end{itemize}
+
+Core business logic modules include:
+\\
+
+\begin{itemize}
+    \item \textbf{Intent Detector}: Pattern-based classification of user queries
+    \item \textbf{RAG System}: Knowledge retrieval and context formatting
+    \item \textbf{Tool Manager}: Banking operations and action execution
+    \item \textbf{Security Handler}: Authentication and authorization logic
+\end{itemize}
+
+\subsubsection{Data Layer}
+
+Data persistence is managed through Supabase \cite{supabase2024}, providing:
+\\
+
+\begin{itemize}
+    \item \textbf{PostgreSQL Database}: Relational data storage
+    \item \textbf{pgvector Extension}: Vector similarity search
+    \item \textbf{Real-time Subscriptions}: Live data updates
+    \item \textbf{Row Level Security}: Fine-grained access control
+\end{itemize}
+
+\subsection{Technology Stack}
+
+Table \ref{tab:techstack} summarizes the complete technology stack with justifications.
+\\
+
+\begin{table}[H]
+\centering
+\caption{Technology Stack Components}
+\label{tab:techstack}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Component} & \textbf{Technology} & \textbf{Justification} \\ \midrule
+Frontend Framework & Next.js 16 & Server-side rendering \\
+UI Library & React 19.2 & Component reusability \\
+Type Safety & TypeScript 5 & Error prevention \\
+Styling & Tailwind CSS v4 & Responsive design \\
+AI Framework & Vercel AI SDK v5 & Streaming support \\
+LLM & Google Gemini 2.5 Flash & Fast and accurate \\
+Embeddings & text-embedding-004 & Semantic search \\
+Database & Supabase PostgreSQL & Scalable \\
+Vector Store & pgvector & Similarity search \\
+Deployment & Vercel & Auto-scaling \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Data Flow}
+
+The complete data flow for a typical user interaction follows these steps:
+\\
+
+\begin{enumerate}
+    \item User sends message through chat interface
+    \item Frontend transmits message to /api/chat endpoint
+    \item Backend receives and validates request
+    \item Intent detector analyzes user message
+    \item LLM processes message with conversation context
+    \item If needed, RAG system retrieves relevant documents
+    \item If needed, appropriate tools are called
+    \item LLM generates response using retrieved context and tool results
+    \item Response streams back to frontend word-by-word
+    \item Frontend renders response in chat interface
+    \item Conversation logged to database for analytics
+\end{enumerate}
+
+\section{Agentic RAG System Design}
+
+\subsection{RAG Fundamentals}
+
+Retrieval Augmented Generation addresses the fundamental limitation of LLMs: they can only use information from their training data. RAG enables models to access external knowledge bases, providing:
+\\
+
+\begin{itemize}
+    \item \textbf{Factual Grounding}: Responses based on actual documents
+    \item \textbf{Up-to-date Information}: Knowledge base can be updated without retraining
+    \item \textbf{Source Attribution}: Ability to cite where information came from
+    \item \textbf{Reduced Hallucination}: Less likely to generate false information
+\end{itemize}
+
+\subsection{What Makes It Agentic}
+
+Traditional RAG systems retrieve information for every query. Our agentic implementation empowers the AI to make autonomous decisions about when and how to retrieve information. The model acts as an agent that can:
+\\
+
+\begin{itemize}
+    \item Decide whether knowledge retrieval is necessary
+    \item Choose which category of documents to search
+    \item Determine optimal search parameters
+    \item Combine multiple information sources
+    \item Select and sequence tool calls
+\end{itemize}
+
+This autonomy enables more efficient and contextually appropriate responses.
+
+\subsection{Vector Embeddings}
+
+Vector embeddings transform text into numerical representations that capture semantic meaning. Our implementation uses Google's text-embedding-004 model \cite{googlegemini2024}, which generates 768-dimensional vectors.
+\\
+
+The embedding process:
+\\
+
+\begin{lstlisting}[caption=Embedding Generation Process]
+Input Text: "What are your branch hours?"
+        |
+        v
+Embedding Model (text-embedding-004)
+        |
+        v
+Output Vector: [0.21, 0.42, 0.15, ..., 0.88]
+                (768 numbers total)
+\end{lstlisting}
+
+
+Similar concepts produce similar vectors, enabling semantic search. For example:
+\\
+
+\begin{itemize}
+    \item "What are your hours?" produces [0.21, 0.42, ..., 0.88]
+    \item "When are you open?" produces [0.22, 0.41, ..., 0.87]
+\end{itemize}
+
+Despite different wording, these vectors are mathematically close, allowing the system to recognize them as semantically equivalent queries.
+
+\subsection{Knowledge Base Structure}
+
+The knowledge base is organized into four categories:
+\\
+
+\begin{enumerate}
+    \item \textbf{Policies}: Account terms, security policies, compliance rules
+    \item \textbf{Products}: Credit cards, loans, savings accounts, investment options
+    \item \textbf{FAQs}: Common questions and answers
+    \item \textbf{Procedures}: Step-by-step guides for banking operations
+\end{enumerate}
+
+Each document is stored with metadata including category, source, tags, and last update timestamp.
+
+\subsection{Document Ingestion Pipeline}
+
+The knowledge ingestion process follows these steps:
+\\
+
+\begin{enumerate}
+    \item Read markdown files from data/knowledge/ directory
+    \item Parse and validate document structure
+    \item Generate embedding vector using text-embedding-004
+    \item Store in Supabase with metadata
+    \item Create vector index for efficient similarity search
+\end{enumerate}
+
+\subsection{Retrieval Process}
+
+When a user query requires knowledge retrieval, the system executes:
+\\
+
+\begin{enumerate}
+    \item \textbf{Query Embedding}: Generate vector for user question
+    \item \textbf{Similarity Search}: Find documents with cosine similarity greater than 0.7
+    \item \textbf{Re-ranking}: Apply additional scoring based on keyword matching
+    \item \textbf{Context Formatting}: Prepare retrieved documents for LLM
+    \item \textbf{Response Generation}: LLM generates answer using context
+\end{enumerate}
+
+\subsection{Vector Similarity Search}
+
+The system uses cosine similarity to measure vector closeness:
+\\
+
+\begin{equation}
+\text{similarity}(A, B) = \frac{A \cdot B}{\|A\| \|B\|} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \sqrt{\sum_{i=1}^{n} B_i^2}}
+\end{equation}
+\\
+
+Where $A$ is the query embedding and $B$ is a document embedding. Results with similarity greater than 0.7 are considered relevant.
+
+\subsection{Re-ranking Strategy}
+
+After initial vector search, documents undergo re-ranking to improve relevance:
+\\
+
+\begin{equation}
+\text{final\_score} = \text{similarity\_score} + (\text{keyword\_matches} \times 0.01)
+\end{equation}
+
+This hybrid approach combines semantic similarity with keyword matching for optimal results.
+
+\subsection{Database Schema for RAG}
+
+The documents table schema:
+\\
+
+\begin{lstlisting}[language=SQL, caption=Documents Table Schema]
+CREATE TABLE documents (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  content TEXT NOT NULL,
+  embedding vector(768),
+  category VARCHAR(50),
+  metadata JSONB,
+  source VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_documents_embedding
+  ON documents USING ivfflat (embedding vector_cosine_ops);
+\end{lstlisting}
+
+The ivfflat index enables efficient approximate nearest neighbor search for large vector datasets.
+
+\section{Tool-Based Agentic System}
+
+\subsection{Tool Calling Mechanism}
+
+Tool calling enables the LLM to execute functions rather than just generating text. The Vercel AI SDK \cite{vercelai2024} provides a structured interface for defining tools with parameters and execution logic.
+\\
+
+Each tool consists of:
+\\
+
+\begin{itemize}
+    \item \textbf{Description}: Explains when the AI should use this tool
+    \item \textbf{Parameters}: Defines required and optional inputs with validation
+    \item \textbf{Execute Function}: Contains the actual implementation logic
+\end{itemize}
+
+\subsection{Implemented Banking Tools}
+
+\subsubsection{searchKnowledgeBase Tool}
+
+Searches the vector database for relevant banking information.
+\\
+
+\textbf{Parameters:}
+\begin{itemize}
+    \item query (string, required): Search terms or user question
+    \item category (enum, optional): Filter by policy/product/faq/procedure
+\end{itemize}
+
+\textbf{Returns:}
+\begin{itemize}
+    \item success (boolean): Whether search succeeded
+    \item context (string): Formatted relevant documents
+    \item sourceCount (number): How many sources were used
+\end{itemize}
+
+\subsubsection{cardManagement Tool}
+
+Performs operations on credit/debit cards.
+\\
+
+\textbf{Parameters:}
+\begin{itemize}
+    \item action (enum, required): freeze/unfreeze/report\_lost/order\_replacement
+    \item cardLast4 (string, optional): Last 4 digits of card
+    \item reason (string, optional): Reason for action
+\end{itemize}
+
+\textbf{Returns:}
+\begin{itemize}
+    \item success (boolean): Operation result
+    \item message (string): Confirmation message
+    \item timestamp (string): When operation occurred
+\end{itemize}
+
+\subsubsection{checkBalance Tool}
+
+Retrieves account balance information.
+\\
+
+\textbf{Parameters:}
+\begin{itemize}
+    \item accountType (enum, required): checking/savings/credit
+\end{itemize}
+
+\textbf{Returns:}
+\begin{itemize}
+    \item currentBalance (number): Total balance
+    \item availableBalance (number): Spendable amount
+    \item pending (number): Transactions not yet cleared
+    \item currency (string): Currency code (USD)
+\end{itemize}
+
+\subsubsection{findLocation Tool}
+
+Locates nearby bank branches or ATMs.
+\\
+
+\textbf{Parameters:}
+\begin{itemize}
+    \item locationType (enum, required): branch/atm/both
+    \item location (string, optional): City or zip code
+    \item limit (number, optional): Maximum results to return
+\end{itemize}
+
+\textbf{Returns:}
+\begin{itemize}
+    \item locations (array): List of nearby locations with details
+    \item Each location includes: name, address, distance, hours
+\end{itemize}
+
+\subsubsection{requestHumanAgent Tool}
+
+Escalates conversation to a human agent.
+\\
+
+\textbf{Parameters:}
+\begin{itemize}
+    \item reason (string, required): Why escalation is needed
+    \item priority (enum, required): low/medium/high/urgent
+\end{itemize}
+
+\textbf{Returns:}
+\begin{itemize}
+    \item queuePosition (number): Position in support queue
+    \item estimatedWait (string): Expected wait time
+    \item ticketId (string): Support ticket identifier
+\end{itemize}
+
+\subsection{Tool Orchestration}
+
+The AI model can call multiple tools in sequence to complete complex tasks. For example, when a user reports a lost card:
+\\
+
+\begin{enumerate}
+    \item searchKnowledgeBase(query: "lost card policy")
+    \item cardManagement(action: "freeze", reason: "lost")
+    \item Generate response combining policy info and freeze confirmation
+\end{enumerate}
+
+This orchestration happens autonomously based on the model's understanding of the situation.
+
+\subsection{Tool Implementation Pattern}
+
+Tools follow a consistent implementation pattern using Zod for schema validation:
+\\
+
+\begin{lstlisting}[caption=Tool Implementation Pattern]
+import { tool } from 'ai';
+import { z } from 'zod';
+
+export const exampleTool = tool({
+  description: 'Clear description for AI',
+
+  parameters: z.object({
+    param1: z.string().describe('Parameter description'),
+    param2: z.number().optional()
+  }),
+
+  execute: async ({ param1, param2 }) => {
+    // Implementation logic
+    const result = await performAction(param1, param2);
+
+    return {
+      success: true,
+      data: result
+    };
+  }
+});
+\end{lstlisting}
+
+This pattern ensures type safety, parameter validation, and consistent error handling across all tools.
+
+\section{Intent Detection System}
+
+\subsection{Intent Categories}
+
+The system recognizes the following intent categories:
+\\
+
+\begin{itemize}
+    \item BALANCE\_INQUIRY: Account balance checks
+    \item BRANCH\_LOCATOR: Finding physical locations
+    \item CARD\_LOST: Reporting lost or stolen cards
+    \item CARD\_MANAGEMENT: Card operations (freeze, unfreeze)
+    \item TRANSACTION\_INQUIRY: Transaction history and details
+    \item FAQ: General banking questions
+    \item HUMAN\_HANDOFF: Requests for human assistance
+    \item UNKNOWN: Unrecognized intents
+\end{itemize}
+
+\subsection{Pattern-Based Detection}
+
+Intent detection uses regular expression pattern matching for speed and reliability. Each intent has associated patterns with priority levels:
+\\
+
+\begin{lstlisting}[caption=Intent Pattern Example]
+{
+  intent: 'CARD_LOST',
+  patterns: [
+    /lost.*card/i,
+    /card.*stolen/i,
+    /missing.*card/i,
+    /can't find.*card/i
+  ],
+  priority: 1
+}
+\end{lstlisting}
+
+Patterns are checked in priority order, with the first match winning. Case-insensitive matching handles variations in capitalization.
+
+\subsection{Entity Extraction}
+
+Beyond intent classification, the system extracts entities from user messages:
+\\
+
+\begin{itemize}
+    \item Card types (credit, debit, prepaid)
+    \item Account types (checking, savings)
+    \item Amounts (\$500, 500 dollars)
+    \item Dates and times (yesterday, last week)
+    \item Locations (New York, 10001)
+\end{itemize}
+
+Entities provide context for tool parameter population.
+
+\subsection{Confidence Scoring}
+
+Each intent detection includes a confidence score:
+\\
+
+\begin{itemize}
+    \item Pattern match: 0.9 confidence
+    \item Multiple pattern matches: 0.95 confidence
+    \item Weak signals: 0.5 to 0.7 confidence
+    \item No match: 0.0 confidence (UNKNOWN intent)
+\end{itemize}
+
+Low confidence scores may trigger clarification questions.
+
+\section{Implementation Details}
+
+\subsection{Project Structure}
+
+The codebase follows Next.js App Router conventions:
+\\
+
+\subsection{Main Chat Handler}
+
+The core chat endpoint implementation:
+\\
+
+\begin{lstlisting}[caption=Chat API Handler]
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  // Intent detection
+  const intent = await intentDetector.detect(
+    lastUserMessage
+  );
+
+  // Stream response with tools
+  const result = streamText({
+    model: geminiModel,
+    messages: modelMessages,
+    system: BANKING_SYSTEM_PROMPT,
+    tools: bankingTools,
+    temperature: 0.3,
+    maxRetries: 2,
+    stopWhen: stepCountIs(5),
+
+    onFinish: async ({ text, toolCalls }) => {
+      // Log conversation
+      await logMessage({
+        intent: intent.type,
+        toolsUsed: toolCalls
+      });
+    }
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+\end{lstlisting}
+
+\subsection{RAG Retrieval Implementation}
+
+The knowledge retrieval system:
+\\
+
+\begin{lstlisting}[caption=RAG Retriever]
+class KnowledgeRetriever {
+  async retrieve(query, options) {
+    // Generate query embedding
+    const embedding = await generateEmbedding(query);
+
+    // Search vector store
+    const documents = await searchSimilarDocuments(
+      embedding,
+      options.threshold,
+      options.topK
+    );
+
+    // Re-rank results
+    const reranked = this.rerank(documents, query);
+
+    return reranked;
+  }
+
+  formatContext(documents) {
+    return documents.map((doc, index) =>
+      `[Document ${index + 1}]
+       Source: ${doc.metadata.source}
+       ${doc.content}
+       ---`
+    ).join('\n\n');
+  }
+}
+\end{lstlisting}
+
+\subsection{Vector Store Operations}
+
+Database interaction for similarity search:
+\\
+
+\begin{lstlisting}[caption=Vector Search]
+async function searchSimilarDocuments(query, options) {
+  // Generate embedding
+  const queryEmbedding = await generateEmbedding(query);
+
+  // Call database function
+  const { data, error } = await supabase.rpc(
+    'match_documents',
+    {
+      query_embedding: queryEmbedding,
+      match_threshold: options.threshold,
+      match_count: options.topK,
+      category_filter: options.category
+    }
+  );
+
+  return data || [];
+}
+\end{lstlisting}
+
+The match\_documents PostgreSQL function:
+\\
+
+\begin{lstlisting}[language=SQL, caption=Vector Similarity Function]
+CREATE FUNCTION match_documents(
+  query_embedding vector(768),
+  match_threshold float,
+  match_count int,
+  category_filter varchar DEFAULT NULL
+)
+RETURNS TABLE (
+  id UUID,
+  content TEXT,
+  metadata JSONB,
+  similarity float
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    d.id,
+    d.content,
+    d.metadata,
+    1 - (d.embedding <=> query_embedding) as similarity
+  FROM documents d
+  WHERE
+    (1 - (d.embedding <=> query_embedding)) > match_threshold
+    AND (category_filter IS NULL
+         OR d.category = category_filter)
+  ORDER BY d.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
+\end{lstlisting}
+
+The cosine distance operator enables efficient similarity calculation.
+
+\newpage
+\appendix
+
+\section{Sample Conversations}
+
+\subsection{Lost Card Scenario}
+
+\begin{lstlisting}[caption=Lost Card Interaction]
+User: I think I lost my credit card at the mall
+
+Bot: I understand you've lost your credit card at the mall.
+     This must be concerning. Let me help you secure your
+     account immediately.
+
+     For your protection, I can:
+     1. Freeze your card instantly
+     2. Help you order a replacement card
+
+     Would you like me to freeze your card now?
+
+User: Yes please
+
+Bot: Thank you for verifying your identity.
+
+     Your credit card ending in 1234 has been frozen.
+
+     Your card is now secure:
+     - No transactions can be made
+     - You can unfreeze it if you find it
+     - Virtual card available for immediate use
+
+     Would you like to order a replacement card?
+\end{lstlisting}
+
+\subsection{Balance Inquiry}
+
+\begin{lstlisting}[caption=Balance Check Interaction]
+User: What's my checking account balance?
+
+Bot: I'd be happy to check your account balance.
+     For security, I need to verify your identity first.
+
+     [Authentication Required]
+
+Bot: Your checking account balance:
+     - Current Balance: $2,547.89
+     - Available Balance: $2,147.89
+     - Pending: $400.00
+
+     Would you like to see recent transactions?
+\end{lstlisting}
+
+\section{Database Schema}
+
+\subsection{Complete Schema}
+
+\begin{lstlisting}[language=SQL, caption=Full Database Schema]
+-- Enable extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Users table
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(255) UNIQUE,
+  phone VARCHAR(20),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Conversations table
+CREATE TABLE conversations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id),
+  session_id VARCHAR(255),
+  status VARCHAR(50) DEFAULT 'active',
+  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  ended_at TIMESTAMP,
+  metadata JSONB
+);
+
+-- Messages table
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id UUID REFERENCES conversations(id),
+  role VARCHAR(20) CHECK (role IN ('user', 'assistant')),
+  content TEXT,
+  intent VARCHAR(50),
+  confidence FLOAT,
+  tools_used JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Documents table
+CREATE TABLE documents (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  content TEXT NOT NULL,
+  embedding vector(768),
+  category VARCHAR(50),
+  metadata JSONB,
+  source VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes
+CREATE INDEX idx_conversations_user_id
+  ON conversations(user_id);
+CREATE INDEX idx_messages_conversation_id
+  ON messages(conversation_id);
+CREATE INDEX idx_documents_category
+  ON documents(category);
+CREATE INDEX idx_documents_embedding
+  ON documents USING ivfflat (embedding vector_cosine_ops);
+\end{lstlisting}
+
+\section{Environment Configuration}
+
+\begin{lstlisting}[caption=Environment Variables]
+# Google AI API
+GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_KEY=your_service_key
+\end{lstlisting}
+
+\newpage
+
+\bibliographystyle{unsrt}
+\bibliography{project_report_refereneces.bib}
+
+\end{document}
