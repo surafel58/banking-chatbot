@@ -15,10 +15,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
     const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL });
 
-    // embedContent expects content in a specific format
-    const result = await model.embedContent({
-      content: { parts: [{ text: text.trim() }] }
-    });
+    // embedContent expects a string directly
+    const result = await model.embedContent(text.trim());
 
     return result.embedding.values;
   } catch (error) {

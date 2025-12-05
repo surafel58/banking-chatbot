@@ -1,24 +1,26 @@
 'use client';
 
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card } from '@/components/ui/card';
+import { Bot } from 'lucide-react';
+
 export function TypingIndicator() {
   return (
-    <div className="flex justify-start">
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm">
-        <div className="flex space-x-2 items-center">
-          <div className="flex space-x-1">
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-            <div
-              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-              style={{ animationDelay: '0.1s' }}
-            ></div>
-            <div
-              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-              style={{ animationDelay: '0.2s' }}
-            ></div>
-          </div>
-          <span className="text-sm text-gray-500">Assistant is typing...</span>
+    <div className="flex gap-3">
+      <Avatar className="h-8 w-8 shrink-0 mt-1">
+        <AvatarFallback className="bg-primary text-primary-foreground">
+          <Bot className="h-4 w-4" />
+        </AvatarFallback>
+      </Avatar>
+
+      <Card className="px-4 py-3 bg-card text-card-foreground rounded-tl-sm">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+          <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+          <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></span>
+          <span className="ml-2 text-sm text-muted-foreground">Thinking...</span>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

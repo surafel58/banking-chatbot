@@ -1,8 +1,43 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+// Database types for data_sources table
+export interface DataSourceRow {
+  id: string;
+  type: 'document' | 'url';
+  name: string;
+  status: 'processing' | 'ready' | 'error';
+  metadata: Record<string, any> | null;
+  created_at: string;
+}
+
+export interface Database {
+  public: {
+    Tables: {
+      data_sources: {
+        Row: DataSourceRow;
+        Insert: DataSourceRow;
+        Update: Partial<DataSourceRow>;
+      };
+      knowledge_base: {
+        Row: any;
+        Insert: any;
+        Update: any;
+      };
+      embeddings: {
+        Row: any;
+        Insert: any;
+        Update: any;
+      };
+    };
+    Views: {};
+    Functions: {};
+    Enums: {};
+  };
+}
 
 // Lazy initialization to allow environment variables to be loaded first
-let _supabase: ReturnType<typeof createClient> | null = null;
-let _supabaseAdmin: ReturnType<typeof createClient> | null = null;
+let _supabase: SupabaseClient<Database> | null = null;
+let _supabaseAdmin: SupabaseClient<Database> | null = null;
 
 function getSupabaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,20 +56,20 @@ function getSupabaseAnonKey(): string {
 }
 
 // Public client for client-side operations
-export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
+export const supabase = new Proxy({} as SupabaseClient<Database>, {
   get(target, prop) {
     if (!_supabase) {
-      _supabase = createClient(getSupabaseUrl(), getSupabaseAnonKey());
+      _supabase = createClient<Database>(getSupabaseUrl(), getSupabaseAnonKey());
     }
     return (_supabase as any)[prop];
   },
 });
 
 // Service client for server-side operations (requires service key)
-export const supabaseAdmin = new Proxy({} as ReturnType<typeof createClient>, {
+export const supabaseAdmin = new Proxy({} as SupabaseClient<Database>, {
   get(target, prop) {
     if (!_supabaseAdmin && process.env.SUPABASE_SERVICE_KEY) {
-      _supabaseAdmin = createClient(
+      _supabaseAdmin = createClient<Database>(
         getSupabaseUrl(),
         process.env.SUPABASE_SERVICE_KEY,
         {
@@ -48,3 +83,23 @@ export const supabaseAdmin = new Proxy({} as ReturnType<typeof createClient>, {
     return _supabaseAdmin ? (_supabaseAdmin as any)[prop] : null;
   },
 });
+
+// Helper function to get admin client for server-side operations
+export function getSupabaseAdmin(): SupabaseClient<Database> {
+  if (!_supabaseAdmin && process.env.SUPABASE_SERVICE_KEY) {
+    _supabaseAdmin = createClient<Database>(
+      getSupabaseUrl(),
+      process.env.SUPABASE_SERVICE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+  }
+  if (!_supabaseAdmin) {
+    throw new Error('Supabase admin client not initialized. Check SUPABASE_SERVICE_KEY env var.');
+  }
+  return _supabaseAdmin;
+}

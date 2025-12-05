@@ -8,7 +8,7 @@ import { knowledgeRetriever } from '../rag/retriever';
 export const searchKnowledgeBase = tool({
   description:
     'Search the banking knowledge base for policies, products, FAQs, and procedures. Use this when the user asks general banking questions or needs information about bank services, policies, or products. ALWAYS provide the user\'s question or key terms as the query parameter.',
-  parameters: z.object({
+  inputSchema: z.object({
     query: z.string().describe('The user\'s question or search terms to find relevant information. REQUIRED. Example: "branch hours", "overdraft policy", "account types"'),
     category: z
       .enum(['policy', 'product', 'faq', 'procedure'])
@@ -66,7 +66,7 @@ export const searchKnowledgeBase = tool({
 export const cardManagement = tool({
   description:
     'Manage credit or debit cards: freeze, unfreeze, report lost/stolen, or order replacement. Use this when users need to take action on their cards.',
-  parameters: z.object({
+  inputSchema: z.object({
     action: z
       .enum(['freeze', 'unfreeze', 'report_lost', 'order_replacement'])
       .describe('The action to perform on the card'),
@@ -101,7 +101,7 @@ export const cardManagement = tool({
 export const checkBalance = tool({
   description:
     'Check the balance of checking, savings, or credit card accounts. Requires user authentication.',
-  parameters: z.object({
+  inputSchema: z.object({
     accountType: z
       .enum(['checking', 'savings', 'credit'])
       .describe('Type of account to check'),
@@ -147,7 +147,7 @@ export const checkBalance = tool({
 export const findLocation = tool({
   description:
     'Find nearby bank branches or ATMs based on location. Use when users want to find physical banking locations.',
-  parameters: z.object({
+  inputSchema: z.object({
     locationType: z
       .enum(['branch', 'atm'])
       .describe('Type of location to find'),
@@ -238,7 +238,7 @@ export const findLocation = tool({
 export const viewTransactions = tool({
   description:
     'View recent transactions for an account. Shows the last few transactions with details.',
-  parameters: z.object({
+  inputSchema: z.object({
     accountType: z
       .enum(['checking', 'savings', 'credit'])
       .describe('Type of account to view transactions for'),
@@ -315,7 +315,7 @@ export const viewTransactions = tool({
 export const requestHumanAgent = tool({
   description:
     'Request to transfer the conversation to a human agent. Use when the user explicitly asks to speak with someone, or when the issue is too complex to handle.',
-  parameters: z.object({
+  inputSchema: z.object({
     reason: z
       .string()
       .describe('Brief reason why human agent is needed'),

@@ -72,6 +72,20 @@ CREATE TABLE IF NOT EXISTS security_logs (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Data sources table for knowledge base management
+CREATE TABLE IF NOT EXISTS data_sources (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  type VARCHAR(20) NOT NULL CHECK (type IN ('document', 'url')),
+  name VARCHAR(255) NOT NULL,
+  status VARCHAR(20) DEFAULT 'processing' CHECK (status IN ('processing', 'ready', 'error')),
+  file_size INTEGER,
+  file_type VARCHAR(50),
+  url TEXT,
+  error_message TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Vector similarity search function
 CREATE OR REPLACE FUNCTION match_documents(
   query_embedding vector(768),
@@ -112,6 +126,8 @@ CREATE INDEX IF NOT EXISTS idx_documents_embedding ON documents USING ivfflat (e
 CREATE INDEX IF NOT EXISTS idx_handoff_queue_status ON handoff_queue(status);
 CREATE INDEX IF NOT EXISTS idx_security_logs_user_id ON security_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_security_logs_created_at ON security_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_data_sources_type ON data_sources(type);
+CREATE INDEX IF NOT EXISTS idx_data_sources_status ON data_sources(status);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -120,6 +136,7 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE handoff_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE security_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE data_sources ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies (Basic policies - adjust based on your needs)
 -- Allow service role to do everything
@@ -129,6 +146,13 @@ CREATE POLICY "Service role has full access to messages" ON messages FOR ALL TO 
 CREATE POLICY "Service role has full access to documents" ON documents FOR ALL TO service_role USING (true);
 CREATE POLICY "Service role has full access to handoff_queue" ON handoff_queue FOR ALL TO service_role USING (true);
 CREATE POLICY "Service role has full access to security_logs" ON security_logs FOR ALL TO service_role USING (true);
+CREATE POLICY "Service role has full access to data_sources" ON data_sources FOR ALL TO service_role USING (true);
+
+-- Allow public access to data_sources (for demo - tighten in production)
+CREATE POLICY "Anyone can read data_sources" ON data_sources FOR SELECT USING (true);
+CREATE POLICY "Anyone can insert data_sources" ON data_sources FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can update data_sources" ON data_sources FOR UPDATE USING (true);
+CREATE POLICY "Anyone can delete data_sources" ON data_sources FOR DELETE USING (true);
 
 -- Allow public read access to documents
 CREATE POLICY "Anyone can read documents" ON documents FOR SELECT USING (true);
@@ -145,12 +169,16 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_data_sources_updated_at BEFORE UPDATE ON data_sources
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Insert sample data (optional)
 COMMENT ON TABLE documents IS 'Stores knowledge base documents with vector embeddings for RAG';
 COMMENT ON TABLE conversations IS 'Stores conversation sessions';
 COMMENT ON TABLE messages IS 'Stores individual messages in conversations';
 COMMENT ON TABLE handoff_queue IS 'Queue for human agent handoffs';
 COMMENT ON TABLE security_logs IS 'Audit log for security events';
+COMMENT ON TABLE data_sources IS 'Stores knowledge base data sources (documents and URLs)';
 
 -- Grant necessary permissions
 GRANT USAGE ON SCHEMA public TO anon, authenticated;

@@ -1,65 +1,103 @@
 'use client';
 
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { User, Bot } from 'lucide-react';
+
 interface MessageBubbleProps {
-  message: any; // Using any since @ai-sdk/react has different message format
+  message: any;
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
-  // Extract text content from parts array (for @ai-sdk/react messages)
-  const getMessageText = () => {
+  // Extract text content from message parts (AI SDK pattern)
+  const renderMessageContent = () => {
     if (message.parts) {
-      return message.parts
-        .map((part: any) => (part.type === 'text' ? part.text : null))
-        .filter(Boolean)
-        .join('');
+      return message.parts.map((part: any, index: number) => {
+        if (part.type === 'text') {
+          return (
+            <span key={index} className="whitespace-pre-wrap">
+              {part.text}
+            </span>
+          );
+        }
+        // Handle tool results - can be extended for rich content
+        if (part.type === 'tool-invocation') {
+          return (
+            <div key={index} className="mt-2 p-2 rounded bg-muted/50 text-xs">
+              <span className="text-muted-foreground">Processing: </span>
+              <span className="font-mono">{part.toolInvocation?.toolName}</span>
+            </div>
+          );
+        }
+        return null;
+      }).filter(Boolean);
     }
     // Fallback to content if parts doesn't exist
-    return message.content || '';
+    return <span className="whitespace-pre-wrap">{message.content || ''}</span>;
+  };
+
+  const formatTime = (date: Date | string | undefined) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[80%] rounded-lg px-4 py-3 ${
-          isUser
-            ? 'bg-blue-600 text-white'
-            : 'bg-white text-gray-800 shadow-sm border border-gray-200'
-        }`}
-      >
-        {/* Message Content */}
-        <div className="whitespace-pre-wrap break-words">
-          {getMessageText()}
-        </div>
+    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+      <Avatar className="h-8 w-8 shrink-0 mt-1">
+        <AvatarFallback
+          className={
+            isUser
+              ? 'bg-secondary text-secondary-foreground'
+              : 'bg-primary text-primary-foreground'
+          }
+        >
+          {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+        </AvatarFallback>
+      </Avatar>
 
-        {/* Timestamp */}
-        <div
-          className={`text-xs mt-1 ${
-            isUser ? 'text-blue-100' : 'text-gray-500'
+      <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[80%]`}>
+        <Card
+          className={`px-4 py-3 ${
+            isUser
+              ? 'bg-primary text-primary-foreground rounded-tr-sm'
+              : 'bg-card text-card-foreground rounded-tl-sm'
           }`}
         >
-          {new Date(message.createdAt || Date.now()).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </div>
+          <div className="break-words text-sm md:text-base">
+            {renderMessageContent()}
+          </div>
+        </Card>
 
-        {/* Tool Calls Indicator (if any) */}
-        {message.toolInvocations && message.toolInvocations.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-gray-200">
-            <div className="text-xs text-gray-600 space-y-1">
-              {message.toolInvocations.map((tool, index) => (
-                <div key={index} className="flex items-center space-x-1">
-                  <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                  <span className="font-mono">
-                    {tool.toolName.replace(/([A-Z])/g, ' $1').trim()}
-                  </span>
-                </div>
+        <div className="flex items-center gap-2 mt-1 px-1">
+          <span className="text-xs text-muted-foreground">
+            {formatTime(message.createdAt)}
+          </span>
+
+          {/* Tool invocations indicator */}
+          {message.toolInvocations && message.toolInvocations.length > 0 && (
+            <div className="flex gap-1 flex-wrap">
+              {message.toolInvocations.map((tool: any, index: number) => (
+                <Badge
+                  key={index}
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0"
+                >
+                  {tool.toolName
+                    .replace(/([A-Z])/g, ' $1')
+                    .trim()
+                    .toLowerCase()}
+                </Badge>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

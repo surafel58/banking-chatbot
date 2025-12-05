@@ -26,7 +26,7 @@ export async function searchSimilarDocuments(
     const queryEmbedding = await generateEmbedding(query);
 
     // Call the match_documents function
-    const { data, error } = await supabase.rpc('match_documents', {
+    const { data, error } = await (supabase.rpc as any)('match_documents', {
       query_embedding: queryEmbedding,
       match_threshold: threshold,
       match_count: topK,
@@ -65,8 +65,7 @@ export async function insertDocument(
     const client = supabaseAdmin || supabase;
 
     // Insert into database
-    const { data, error } = await client
-      .from('documents')
+    const { data, error } = await (client.from('documents') as any)
       .insert({
         content,
         embedding,
@@ -170,5 +169,55 @@ export async function getDocumentCount(
   } catch (error) {
     console.error('Document count error:', error);
     return 0;
+  }
+}
+
+/**
+ * Get documents by source URL
+ */
+export async function getDocumentsBySource(
+  source: string
+): Promise<{ id: string; content: string }[]> {
+  try {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('id, content')
+      .eq('source', source);
+
+    if (error) {
+      console.error('Error fetching documents by source:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Get documents by source error:', error);
+    return [];
+  }
+}
+
+/**
+ * Delete documents by source
+ */
+export async function deleteDocumentsBySource(
+  source: string
+): Promise<boolean> {
+  try {
+    const client = supabaseAdmin || supabase;
+
+    const { error } = await client
+      .from('documents')
+      .delete()
+      .eq('source', source);
+
+    if (error) {
+      console.error('Error deleting documents by source:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Document deletion by source error:', error);
+    return false;
   }
 }
