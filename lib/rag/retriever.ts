@@ -1,30 +1,44 @@
-import { searchSimilarDocuments } from './vectorStore';
+import { searchDocuments, SearchResult } from './upstashSearch';
 import { Document, RetrievalOptions } from '@/types';
 
 export class KnowledgeRetriever {
   /**
-   * Retrieve relevant documents for a query
+   * Retrieve relevant documents for a query using Upstash Search
+   * Upstash handles embedding and reranking automatically
    */
   async retrieve(
     query: string,
     options: RetrievalOptions = {}
   ): Promise<Document[]> {
-    const threshold = options.threshold ?? 0.7;
     const topK = options.topK ?? 5;
-    const categoryFilter = options.categoryFilter;
 
     try {
-      // Search vector store
-      const documents = await searchSimilarDocuments(query, {
-        threshold,
-        topK,
-        category: categoryFilter,
+      // Search with Upstash Search (includes built-in reranking)
+      const results = await searchDocuments(query, {
+        limit: topK,
+        rerank: true,
       });
 
-      // Re-rank results if needed
-      const reranked = this.rerank(documents, query);
+      // Convert SearchResult to Document format
+      const documents: Document[] = results.map((result) => ({
+        id: result.id,
+        content: result.content,
+        metadata: {
+          category: result.metadata.category,
+          source: result.metadata.source,
+          tags: result.metadata.tags,
+        },
+        similarity: result.score,
+      }));
 
-      return reranked;
+      // Filter by category if specified
+      if (options.categoryFilter) {
+        return documents.filter(
+          (doc) => doc.metadata?.category === options.categoryFilter
+        );
+      }
+
+      return documents;
     } catch (error) {
       console.error('Retrieval error:', error);
       return [];
@@ -53,31 +67,6 @@ ${doc.content}
   }
 
   /**
-   * Re-rank documents based on relevance
-   */
-  private rerank(documents: Document[], query: string): Document[] {
-    // Simple reranking based on similarity score and keyword matching
-    return documents
-      .map((doc) => {
-        let score = doc.similarity || 0;
-
-        // Boost score if query keywords appear in content
-        const queryWords = query.toLowerCase().split(/\s+/);
-        const contentLower = doc.content.toLowerCase();
-
-        const keywordMatches = queryWords.filter((word) =>
-          contentLower.includes(word)
-        ).length;
-
-        score += keywordMatches * 0.01;
-
-        return { ...doc, score };
-      })
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
-      .map(({ score, ...doc }) => doc); // Remove temporary score field
-  }
-
-  /**
    * Retrieve and format context in one call
    */
   async retrieveContext(
@@ -93,13 +82,12 @@ ${doc.content}
    */
   async searchByCategory(
     query: string,
-    category: 'policy' | 'product' | 'faq' | 'procedure',
+    category: 'policy' | 'product' | 'faq' | 'procedure' | 'document' | 'url',
     topK = 3
   ): Promise<Document[]> {
     return this.retrieve(query, {
       categoryFilter: category,
       topK,
-      threshold: 0.6,
     });
   }
 

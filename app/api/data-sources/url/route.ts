@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
-import { insertDocument } from '@/lib/rag/vectorStore';
+import { addDocument } from '@/lib/rag/upstashSearch';
+import { chunkText } from '@/lib/utils/textChunking';
 
 // Helper to extract text content from HTML
 function extractTextFromHtml(html: string): string {
@@ -21,34 +22,7 @@ function extractTextFromHtml(html: string): string {
   return text;
 }
 
-// Helper to chunk text into smaller pieces
-function chunkText(text: string, maxChunkSize: number = 1000): string[] {
-  const chunks: string[] = [];
-  const sentences = text.split(/[.!?]+/);
-  let currentChunk = '';
-
-  for (const sentence of sentences) {
-    const trimmedSentence = sentence.trim();
-    if (!trimmedSentence) continue;
-
-    if (currentChunk.length + trimmedSentence.length + 1 > maxChunkSize) {
-      if (currentChunk) {
-        chunks.push(currentChunk.trim());
-      }
-      currentChunk = trimmedSentence + '.';
-    } else {
-      currentChunk += (currentChunk ? ' ' : '') + trimmedSentence + '.';
-    }
-  }
-
-  if (currentChunk.trim()) {
-    chunks.push(currentChunk.trim());
-  }
-
-  return chunks;
-}
-
-// Process URL: fetch content and index it
+// Process URL: fetch content and index it with Upstash Search
 async function processUrl(dataSourceId: string, url: string, name: string): Promise<void> {
   const supabase = getSupabaseAdmin();
 
@@ -84,28 +58,28 @@ async function processUrl(dataSourceId: string, url: string, name: string): Prom
 
     console.log(`Extracted ${text.length} characters from URL`);
 
-    // Chunk the text and insert each chunk
+    // Chunk the text and insert each chunk into Upstash Search
     const chunks = chunkText(text, 1000);
     console.log(`Created ${chunks.length} chunks for indexing`);
 
     let successCount = 0;
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
-      const docId = await insertDocument(chunk, {
+      const chunkId = `${dataSourceId}-chunk-${i + 1}`;
+
+      await addDocument(chunkId, chunk, {
         category: 'url',
         source: url,
         tags: [name, `chunk-${i + 1}`],
       });
-      if (docId) {
-        successCount++;
-      }
+      successCount++;
     }
 
     console.log(`Successfully indexed ${successCount}/${chunks.length} chunks`);
 
-    // Update data source status to ready
+    // Update data source status to ready and save chunk count
     await (supabase.from('data_sources') as any)
-      .update({ status: 'ready' })
+      .update({ status: 'ready', chunk_count: chunks.length })
       .eq('id', dataSourceId);
 
     console.log(`URL processing complete: ${url}`);

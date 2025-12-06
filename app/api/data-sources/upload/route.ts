@@ -1,34 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
-import { insertDocument } from '@/lib/rag/vectorStore';
-import { extractTextFromPdf } from '@/lib/utils/pdfExtractor';
+import { addDocument } from '@/lib/rag/upstashSearch';
 import { chunkText } from '@/lib/utils/textChunking';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ACCEPTED_TYPES = ['application/pdf', 'text/plain', 'text/markdown'];
+// PDF support temporarily removed - only TXT and MD for now
+const ACCEPTED_TYPES = ['text/plain', 'text/markdown'];
 
-// Process document: extract text, chunk, and index
+// Process document: extract text, chunk, and index with Upstash Search
 async function processDocument(
   dataSourceId: string,
   fileBuffer: ArrayBuffer,
-  fileName: string,
-  fileType: string
+  fileName: string
 ): Promise<void> {
   const supabase = getSupabaseAdmin();
 
   try {
     console.log(`Processing document: ${fileName}`);
 
-    // Extract text based on file type
-    let text: string;
-
-    if (fileType === 'application/pdf') {
-      text = await extractTextFromPdf(fileBuffer);
-    } else {
-      // TXT and MD files - decode buffer to string
-      text = new TextDecoder('utf-8').decode(fileBuffer);
-    }
+    // TXT and MD files - decode buffer to string
+    const text = new TextDecoder('utf-8').decode(fileBuffer);
 
     if (!text || text.length < 10) {
       throw new Error('Extracted content is too short or empty');
@@ -40,25 +32,25 @@ async function processDocument(
     const chunks = chunkText(text, 1000);
     console.log(`Created ${chunks.length} chunks for indexing`);
 
-    // Insert each chunk into vector store
+    // Insert each chunk into Upstash Search
     let successCount = 0;
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
-      const docId = await insertDocument(chunk, {
+      const chunkId = `${dataSourceId}-chunk-${i + 1}`;
+
+      await addDocument(chunkId, chunk, {
         category: 'document',
         source: fileName,
         tags: [fileName, `chunk-${i + 1}`],
       });
-      if (docId) {
-        successCount++;
-      }
+      successCount++;
     }
 
     console.log(`Successfully indexed ${successCount}/${chunks.length} chunks`);
 
-    // Update status to ready
+    // Update status to ready and save chunk count
     await (supabase.from('data_sources') as any)
-      .update({ status: 'ready' })
+      .update({ status: 'ready', chunk_count: chunks.length })
       .eq('id', dataSourceId);
 
     console.log(`Document processing complete: ${fileName}`);
@@ -87,11 +79,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
+    // Validate file type (PDF temporarily not supported)
     const fileType = file.type || 'text/plain';
-    if (!ACCEPTED_TYPES.includes(fileType) && !file.name.endsWith('.md')) {
+    const isMarkdown = file.name.endsWith('.md');
+    const isText = ACCEPTED_TYPES.includes(fileType) || isMarkdown;
+
+    if (!isText) {
       return NextResponse.json(
-        { message: 'Invalid file type. Accepted: PDF, TXT, MD' },
+        { message: 'Invalid file type. Currently supported: TXT, MD (PDF support coming soon)' },
         { status: 400 }
       );
     }
@@ -130,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     // Get file buffer and process asynchronously (non-blocking)
     const fileBuffer = await file.arrayBuffer();
-    processDocument(id, fileBuffer, file.name, fileType).catch((error) => {
+    processDocument(id, fileBuffer, file.name).catch((error) => {
       console.error('Error processing document:', error);
     });
 

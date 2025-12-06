@@ -2,7 +2,7 @@
  * Knowledge Base Ingestion Script
  *
  * This script reads markdown files from the data/knowledge directory,
- * generates embeddings, and stores them in Supabase for RAG retrieval.
+ * and stores them in Upstash Search for RAG retrieval.
  *
  * Usage: npm run ingest-knowledge
  */
@@ -16,15 +16,17 @@ const envPath = resolve(process.cwd(), '.env.local');
 const result = config({ path: envPath });
 
 if (result.error) {
-  console.error('⚠️  Warning: Could not load .env.local file:', result.error.message);
+  console.error('Warning: Could not load .env.local file:', result.error.message);
   console.log('Looking for file at:', envPath);
 } else {
-  console.log('✅ Environment variables loaded from:', envPath);
+  console.log('Environment variables loaded from:', envPath);
 }
 
 // Now import other modules AFTER environment is loaded
 import { readFileSync, readdirSync, statSync } from 'fs';
-import { insertDocument } from '../lib/rag/vectorStore';
+import { addDocument } from '../lib/rag/upstashSearch';
+import { chunkText } from '../lib/utils/textChunking';
+import { v4 as uuidv4 } from 'uuid';
 
 interface DocumentFile {
   path: string;
@@ -72,7 +74,7 @@ function readMarkdownFiles(
  * Main ingestion function
  */
 async function ingestKnowledgeBase() {
-  console.log('🚀 Starting knowledge base ingestion...\n');
+  console.log('Starting knowledge base ingestion...\n');
 
   const dataDir = join(process.cwd(), 'data', 'knowledge');
   const categories: Array<'policy' | 'product' | 'faq' | 'procedure'> = [
@@ -94,29 +96,32 @@ async function ingestKnowledgeBase() {
       'procedure': 'procedures',
     };
     const categoryDir = join(dataDir, pluralMap[category]);
-    console.log(`📁 Processing ${category} documents...`);
+    console.log(`Processing ${category} documents...`);
 
     const documents = readMarkdownFiles(categoryDir, category);
     console.log(`   Found ${documents.length} documents`);
 
     for (const doc of documents) {
       try {
-        console.log(`   ⏳ Ingesting: ${doc.path}`);
+        console.log(`   Ingesting: ${doc.path}`);
 
-        const docId = await insertDocument(doc.content, {
-          category: doc.category,
-          source: doc.path,
-          tags: [doc.category],
-        });
+        // Chunk the document content
+        const chunks = chunkText(doc.content, 1000);
+        const baseId = uuidv4();
 
-        if (docId) {
-          successCount++;
-          console.log(`   ✅ Success: ${docId}`);
-        } else {
-          console.log(`   ❌ Failed to insert document`);
+        for (let i = 0; i < chunks.length; i++) {
+          const chunkId = `${baseId}-chunk-${i + 1}`;
+          await addDocument(chunkId, chunks[i], {
+            category: doc.category,
+            source: doc.path,
+            tags: [doc.category, `chunk-${i + 1}`],
+          });
         }
+
+        successCount++;
+        console.log(`   Success: ${chunks.length} chunks indexed`);
       } catch (error) {
-        console.error(`   ❌ Error ingesting ${doc.path}:`, error);
+        console.error(`   Error ingesting ${doc.path}:`, error);
       }
     }
 
@@ -124,11 +129,11 @@ async function ingestKnowledgeBase() {
     console.log();
   }
 
-  console.log('📊 Ingestion Summary:');
+  console.log('Ingestion Summary:');
   console.log(`   Total documents processed: ${totalDocuments}`);
   console.log(`   Successfully ingested: ${successCount}`);
   console.log(`   Failed: ${totalDocuments - successCount}`);
-  console.log('\n✨ Knowledge base ingestion complete!');
+  console.log('\nKnowledge base ingestion complete!');
 }
 
 // Run if executed directly
@@ -136,7 +141,7 @@ if (require.main === module) {
   ingestKnowledgeBase()
     .then(() => process.exit(0))
     .catch((error) => {
-      console.error('❌ Ingestion failed:', error);
+      console.error('Ingestion failed:', error);
       process.exit(1);
     });
 }

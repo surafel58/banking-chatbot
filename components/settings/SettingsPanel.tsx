@@ -26,27 +26,47 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isAddingUrl, setIsAddingUrl] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDeletingAllDocs, setIsDeletingAllDocs] = useState(false);
+  const [isDeletingAllUrls, setIsDeletingAllUrls] = useState(false);
 
-  const fetchSources = useCallback(async () => {
+  const fetchSources = useCallback(async (showLoading = true) => {
     try {
-      setIsLoading(true);
+      if (showLoading) setIsLoading(true);
       const response = await fetch('/api/data-sources');
       if (response.ok) {
         const data = await response.json();
         setSources(data.sources || []);
+        return data.sources || [];
       }
+      return [];
     } catch (error) {
       console.error('Failed to fetch data sources:', error);
+      return [];
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   }, []);
 
+  // Initial fetch when drawer opens
   useEffect(() => {
     if (open) {
       fetchSources();
     }
   }, [open, fetchSources]);
+
+  // Poll for updates when there are items with "processing" status
+  useEffect(() => {
+    if (!open) return;
+
+    const hasProcessing = sources.some((s) => s.status === 'processing');
+    if (!hasProcessing) return;
+
+    const pollInterval = setInterval(() => {
+      fetchSources(false); // Don't show loading spinner during polling
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [open, sources, fetchSources]);
 
   const handleUpload = async (file: File) => {
     setIsUploading(true);
@@ -107,6 +127,34 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
     }
   };
 
+  const handleDeleteAllDocs = async () => {
+    setIsDeletingAllDocs(true);
+    try {
+      for (const source of documentSources) {
+        await fetch(`/api/data-sources/${source.id}`, { method: 'DELETE' });
+      }
+      setSources((prev) => prev.filter((s) => s.type !== 'document'));
+    } catch (error) {
+      console.error('Failed to delete all documents:', error);
+    } finally {
+      setIsDeletingAllDocs(false);
+    }
+  };
+
+  const handleDeleteAllUrls = async () => {
+    setIsDeletingAllUrls(true);
+    try {
+      for (const source of urlSources) {
+        await fetch(`/api/data-sources/${source.id}`, { method: 'DELETE' });
+      }
+      setSources((prev) => prev.filter((s) => s.type !== 'url'));
+    } catch (error) {
+      console.error('Failed to delete all URLs:', error);
+    } finally {
+      setIsDeletingAllUrls(false);
+    }
+  };
+
   const documentSources = sources.filter((s) => s.type === 'document');
   const urlSources = sources.filter((s) => s.type === 'url');
 
@@ -120,7 +168,7 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
           </SheetTitle>
         </SheetHeader>
 
-        <div className="mt-6">
+        <div className="mt-6 px-4">
           <Tabs defaultValue="documents" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="documents">
@@ -138,7 +186,9 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
                 sources={documentSources}
                 isLoading={isLoading}
                 onDelete={handleDelete}
+                onDeleteAll={handleDeleteAllDocs}
                 deletingId={deletingId}
+                isDeletingAll={isDeletingAllDocs}
                 emptyMessage="No documents uploaded yet"
               />
             </TabsContent>
@@ -150,7 +200,9 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
                 sources={urlSources}
                 isLoading={isLoading}
                 onDelete={handleDelete}
+                onDeleteAll={handleDeleteAllUrls}
                 deletingId={deletingId}
+                isDeletingAll={isDeletingAllUrls}
                 emptyMessage="No URLs added yet"
               />
             </TabsContent>
