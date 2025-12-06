@@ -3,24 +3,42 @@ import { createServerClient } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
 import { addDocument } from '@/lib/rag/upstashSearch';
 import { chunkText } from '@/lib/utils/textChunking';
+import { extractTextFromPDF } from '@/lib/utils/pdfExtractor';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-// PDF support temporarily removed - only TXT and MD for now
-const ACCEPTED_TYPES = ['text/plain', 'text/markdown'];
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB for PDFs (Gemini supports up to 2GB)
+const ACCEPTED_TEXT_TYPES = ['text/plain', 'text/markdown'];
+const ACCEPTED_PDF_TYPE = 'application/pdf';
 
 // Process document: extract text, chunk, and index with Upstash Search
 async function processDocument(
   dataSourceId: string,
   fileBuffer: ArrayBuffer,
-  fileName: string
+  fileName: string,
+  fileType: string
 ): Promise<void> {
   const supabase = createServerClient();
 
   try {
-    console.log(`Processing document: ${fileName}`);
+    console.log(`Processing document: ${fileName} (type: ${fileType})`);
 
-    // TXT and MD files - decode buffer to string
-    const text = new TextDecoder('utf-8').decode(fileBuffer);
+    let text: string;
+
+    // Handle PDF files using Gemini extraction
+    if (fileType === ACCEPTED_PDF_TYPE || fileName.toLowerCase().endsWith('.pdf')) {
+      console.log(`[PDF Processing] Using Gemini to extract text from ${fileName}`);
+
+      const extractionResult = await extractTextFromPDF(fileBuffer, fileName);
+
+      if (!extractionResult.success) {
+        throw new Error(`PDF extraction failed: ${extractionResult.error}`);
+      }
+
+      text = extractionResult.text;
+      console.log(`[PDF Processing] Gemini extracted ${text.length} characters`);
+    } else {
+      // TXT and MD files - decode buffer to string
+      text = new TextDecoder('utf-8').decode(fileBuffer);
+    }
 
     if (!text || text.length < 10) {
       throw new Error('Extracted content is too short or empty');
@@ -81,14 +99,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type (PDF temporarily not supported)
+    // Validate file type
     const fileType = file.type || 'text/plain';
     const isMarkdown = file.name.endsWith('.md');
-    const isText = ACCEPTED_TYPES.includes(fileType) || isMarkdown;
+    const isPDF = fileType === ACCEPTED_PDF_TYPE || file.name.toLowerCase().endsWith('.pdf');
+    const isText = ACCEPTED_TEXT_TYPES.includes(fileType) || isMarkdown;
 
-    if (!isText) {
+    if (!isText && !isPDF) {
       return NextResponse.json(
-        { message: 'Invalid file type. Currently supported: TXT, MD (PDF support coming soon)' },
+        { message: 'Invalid file type. Supported formats: PDF, TXT, MD' },
         { status: 400 }
       );
     }
@@ -96,7 +115,7 @@ export async function POST(request: NextRequest) {
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { message: 'File size must be less than 10MB' },
+        { message: 'File size must be less than 50MB' },
         { status: 400 }
       );
     }
@@ -127,7 +146,8 @@ export async function POST(request: NextRequest) {
 
     // Get file buffer and process asynchronously (non-blocking)
     const fileBuffer = await file.arrayBuffer();
-    processDocument(id, fileBuffer, file.name).catch((error) => {
+    const finalFileType = isPDF ? ACCEPTED_PDF_TYPE : fileType;
+    processDocument(id, fileBuffer, file.name, finalFileType).catch((error) => {
       console.error('Error processing document:', error);
     });
 

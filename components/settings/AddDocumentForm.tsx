@@ -11,7 +11,7 @@ interface AddDocumentFormProps {
 }
 
 const ACCEPTED_TYPES = ['.pdf', '.txt', '.md'];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB for PDFs
 
 export function AddDocumentForm({ onUpload, isUploading }: AddDocumentFormProps) {
   const [dragActive, setDragActive] = useState(false);
@@ -25,7 +25,7 @@ export function AddDocumentForm({ onUpload, isUploading }: AddDocumentFormProps)
       return `Invalid file type. Accepted: ${ACCEPTED_TYPES.join(', ')}`;
     }
     if (file.size > MAX_FILE_SIZE) {
-      return 'File size must be less than 10MB';
+      return 'File size must be less than 50MB';
     }
     return null;
   };
@@ -109,7 +109,7 @@ export function AddDocumentForm({ onUpload, isUploading }: AddDocumentFormProps)
           Drop your file here or click to browse
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          PDF, TXT, MD (max 10MB)
+          PDF, TXT, MD (max 50MB)
         </p>
       </Card>
 
