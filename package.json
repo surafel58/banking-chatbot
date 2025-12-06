@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "ingest-knowledge": "tsx scripts/ingest-knowledge.ts"
+    "ingest-knowledge": "tsx scripts/ingest-knowledge.ts",
+    "generate-types": "pnpm dlx supabase gen types typescript --project-id wsqrmphcictyklzkpqfl > types/supabase.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.28",

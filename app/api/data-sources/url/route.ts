@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase/client';
+import { createServerClient } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
 import { addDocument } from '@/lib/rag/upstashSearch';
 import { chunkText } from '@/lib/utils/textChunking';
@@ -24,7 +24,7 @@ function extractTextFromHtml(html: string): string {
 
 // Process URL: fetch content and index it with Upstash Search
 async function processUrl(dataSourceId: string, url: string, name: string): Promise<void> {
-  const supabase = getSupabaseAdmin();
+  const supabase = createServerClient();
 
   try {
     console.log(`Processing URL: ${url}`);
@@ -78,7 +78,8 @@ async function processUrl(dataSourceId: string, url: string, name: string): Prom
     console.log(`Successfully indexed ${successCount}/${chunks.length} chunks`);
 
     // Update data source status to ready and save chunk count
-    await (supabase.from('data_sources') as any)
+    await supabase
+      .from('data_sources')
       .update({ status: 'ready', chunk_count: chunks.length })
       .eq('id', dataSourceId);
 
@@ -87,7 +88,8 @@ async function processUrl(dataSourceId: string, url: string, name: string): Prom
     console.error(`Error processing URL ${url}:`, error);
 
     // Update data source status to error
-    await (supabase.from('data_sources') as any)
+    await supabase
+      .from('data_sources')
       .update({
         status: 'error',
         error_message: error instanceof Error ? error.message : 'Unknown error',
@@ -118,16 +120,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = getSupabaseAdmin();
+    const supabase = createServerClient();
     const id = uuidv4();
 
     // Extract domain for name
     const urlObj = new URL(url);
     const name = urlObj.hostname + urlObj.pathname.slice(0, 30);
 
-    // Create data source record using type assertion
-    const { error: insertError } = await (supabase
-      .from('data_sources') as any)
+    // Create data source record with proper types
+    const { error: insertError } = await supabase
+      .from('data_sources')
       .insert({
         id,
         type: 'url',

@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase/client';
+import { createServerClient } from '@/lib/supabase/server';
 
 export async function GET() {
   try {
-    const supabase = getSupabaseAdmin();
+    const supabase = createServerClient();
 
-    const { data: sources, error } = await (supabase
-      .from('data_sources') as any)
+    const { data: sources, error } = await supabase
+      .from('data_sources')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -16,7 +16,7 @@ export async function GET() {
     }
 
     // Transform the data to match our frontend types
-    const transformedSources = (sources || []).map((source: any) => ({
+    const transformedSources = (sources || []).map((source) => ({
       id: source.id,
       type: source.type,
       name: source.name,

@@ -1,39 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-// Database types for data_sources table
-export interface DataSourceRow {
-  id: string;
-  type: 'document' | 'url';
-  name: string;
-  status: 'processing' | 'ready' | 'error';
-  metadata: Record<string, any> | null;
-  created_at: string;
-}
-
-export interface Database {
-  public: {
-    Tables: {
-      data_sources: {
-        Row: DataSourceRow;
-        Insert: DataSourceRow;
-        Update: Partial<DataSourceRow>;
-      };
-      knowledge_base: {
-        Row: any;
-        Insert: any;
-        Update: any;
-      };
-      embeddings: {
-        Row: any;
-        Insert: any;
-        Update: any;
-      };
-    };
-    Views: {};
-    Functions: {};
-    Enums: {};
-  };
-}
+import type { Database } from '@/types/supabase';
 
 // Lazy initialization to allow environment variables to be loaded first
 let _supabase: SupabaseClient<Database> | null = null;

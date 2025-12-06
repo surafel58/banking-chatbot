@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase/client';
+import { createServerClient } from '@/lib/supabase/server';
 import { deleteDocuments } from '@/lib/rag/upstashSearch';
 
 export async function DELETE(
@@ -16,17 +16,17 @@ export async function DELETE(
       );
     }
 
-    const supabase = getSupabaseAdmin();
+    const supabase = createServerClient();
 
     // 1. Get the data source to find chunk count
-    const { data: dataSource } = await (supabase
-      .from('data_sources') as any)
+    const { data: dataSource } = await supabase
+      .from('data_sources')
       .select('chunk_count')
       .eq('id', id)
       .single();
 
     // 2. Delete chunks from Upstash if any exist
-    if (dataSource?.chunk_count > 0) {
+    if (dataSource?.chunk_count && dataSource.chunk_count > 0) {
       const chunkIds = Array.from(
         { length: dataSource.chunk_count },
         (_, i) => `${id}-chunk-${i + 1}`
@@ -41,7 +41,8 @@ export async function DELETE(
     }
 
     // 3. Delete from Supabase
-    const { error } = await (supabase.from('data_sources') as any)
+    const { error } = await supabase
+      .from('data_sources')
       .delete()
       .eq('id', id);
 
