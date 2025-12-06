@@ -71,7 +71,7 @@ export function DataSourceList({
           key={source.id}
           source={source}
           onDelete={onDelete}
-          isDeleting={deletingId === source.id || isDeletingAll}
+          isDeleting={deletingId === source.id || isDeletingAll === true}
         />
       ))}
     </div>

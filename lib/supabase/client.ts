@@ -69,3 +69,18 @@ export function getSupabaseAdmin(): SupabaseClient<Database> {
   }
   return _supabaseAdmin;
 }
+
+// Singleton browser client for auth-aware operations
+let _browserClient: SupabaseClient<Database> | null = null;
+
+export function createBrowserClient(): SupabaseClient<Database> {
+  if (!_browserClient) {
+    _browserClient = createClient<Database>(getSupabaseUrl(), getSupabaseAnonKey(), {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    });
+  }
+  return _browserClient;
+}

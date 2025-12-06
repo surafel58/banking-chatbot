@@ -6,19 +6,18 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
-  }
+// Utility type to get table row types
+export type Tables<T extends keyof Database['public']['Tables']> =
+  Database['public']['Tables'][T]['Row']
+
+export interface Database {
   public: {
     Tables: {
       conversations: {
         Row: {
           ended_at: string | null
           id: string
-          metadata: Json | null
+          metadata: Json
           session_id: string | null
           started_at: string | null
           status: string | null
@@ -27,7 +26,7 @@ export type Database = {
         Insert: {
           ended_at?: string | null
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           session_id?: string | null
           started_at?: string | null
           status?: string | null
@@ -36,21 +35,13 @@ export type Database = {
         Update: {
           ended_at?: string | null
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           session_id?: string | null
           started_at?: string | null
           status?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "conversations_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       data_sources: {
         Row: {
@@ -101,7 +92,7 @@ export type Database = {
           created_at: string | null
           embedding: string | null
           id: string
-          metadata: Json | null
+          metadata: Json
           source: string | null
           updated_at: string | null
         }
@@ -111,7 +102,7 @@ export type Database = {
           created_at?: string | null
           embedding?: string | null
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           source?: string | null
           updated_at?: string | null
         }
@@ -121,7 +112,7 @@ export type Database = {
           created_at?: string | null
           embedding?: string | null
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           source?: string | null
           updated_at?: string | null
         }
@@ -158,97 +149,76 @@ export type Database = {
           reason?: string | null
           status?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "handoff_queue_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       messages: {
         Row: {
           confidence: number | null
-          content: string | null
+          content: string
           conversation_id: string | null
           created_at: string | null
           id: string
           intent: string | null
-          role: string | null
+          role: string
           tools_used: Json | null
         }
         Insert: {
           confidence?: number | null
-          content?: string | null
+          content: string
           conversation_id?: string | null
           created_at?: string | null
           id?: string
           intent?: string | null
-          role?: string | null
+          role: string
           tools_used?: Json | null
         }
         Update: {
           confidence?: number | null
-          content?: string | null
+          content?: string
           conversation_id?: string | null
           created_at?: string | null
           id?: string
           intent?: string | null
-          role?: string | null
+          role?: string
           tools_used?: Json | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "messages_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       security_logs: {
         Row: {
-          action: string | null
-          auth_level: string | null
+          action: string
           created_at: string | null
           id: string
-          ip_address: unknown
-          success: boolean | null
+          ip_address: string | null
+          metadata: Json | null
+          result: string
+          session_id: string | null
           user_agent: string | null
           user_id: string | null
         }
         Insert: {
-          action?: string | null
-          auth_level?: string | null
+          action: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown
-          success?: boolean | null
+          ip_address?: string | null
+          metadata?: Json | null
+          result: string
+          session_id?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
         Update: {
-          action?: string | null
-          auth_level?: string | null
+          action?: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown
-          success?: boolean | null
+          ip_address?: string | null
+          metadata?: Json | null
+          result?: string
+          session_id?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "security_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       users: {
         Row: {
@@ -271,154 +241,210 @@ export type Database = {
         }
         Relationships: []
       }
+      // New banking tables
+      demo_accounts: {
+        Row: {
+          id: string
+          user_id: string
+          type: 'checking' | 'savings' | 'credit'
+          account_number: string
+          current_balance: number
+          available_balance: number
+          pending_amount: number
+          currency: string
+          credit_limit: number | null
+          status: 'active' | 'frozen' | 'closed'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: 'checking' | 'savings' | 'credit'
+          account_number: string
+          current_balance?: number
+          available_balance?: number
+          pending_amount?: number
+          currency?: string
+          credit_limit?: number | null
+          status?: 'active' | 'frozen' | 'closed'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: 'checking' | 'savings' | 'credit'
+          account_number?: string
+          current_balance?: number
+          available_balance?: number
+          pending_amount?: number
+          currency?: string
+          credit_limit?: number | null
+          status?: 'active' | 'frozen' | 'closed'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      demo_transactions: {
+        Row: {
+          id: string
+          account_id: string
+          type: 'debit' | 'credit'
+          amount: number
+          description: string
+          category: string | null
+          merchant_name: string | null
+          status: 'pending' | 'completed' | 'declined'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          account_id: string
+          type: 'debit' | 'credit'
+          amount: number
+          description: string
+          category?: string | null
+          merchant_name?: string | null
+          status?: 'pending' | 'completed' | 'declined'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          account_id?: string
+          type?: 'debit' | 'credit'
+          amount?: number
+          description?: string
+          category?: string | null
+          merchant_name?: string | null
+          status?: 'pending' | 'completed' | 'declined'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demo_transactions_account_id_fkey"
+            columns: ["account_id"]
+            referencedRelation: "demo_accounts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      demo_cards: {
+        Row: {
+          id: string
+          user_id: string
+          account_id: string | null
+          card_type: 'debit' | 'credit'
+          card_name: string
+          last_four: string
+          expiry_month: number
+          expiry_year: number
+          status: 'active' | 'frozen' | 'lost' | 'expired' | 'cancelled'
+          daily_limit: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          account_id?: string | null
+          card_type: 'debit' | 'credit'
+          card_name: string
+          last_four: string
+          expiry_month: number
+          expiry_year: number
+          status?: 'active' | 'frozen' | 'lost' | 'expired' | 'cancelled'
+          daily_limit?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          account_id?: string | null
+          card_type?: 'debit' | 'credit'
+          card_name?: string
+          last_four?: string
+          expiry_month?: number
+          expiry_year?: number
+          status?: 'active' | 'frozen' | 'lost' | 'expired' | 'cancelled'
+          daily_limit?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demo_cards_account_id_fkey"
+            columns: ["account_id"]
+            referencedRelation: "demo_accounts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_profiles: {
+        Row: {
+          id: string
+          full_name: string | null
+          phone: string | null
+          address: string | null
+          city: string | null
+          state: string | null
+          zip_code: string | null
+          date_of_birth: string | null
+          is_demo_seeded: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          full_name?: string | null
+          phone?: string | null
+          address?: string | null
+          city?: string | null
+          state?: string | null
+          zip_code?: string | null
+          date_of_birth?: string | null
+          is_demo_seeded?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          full_name?: string | null
+          phone?: string | null
+          address?: string | null
+          city?: string | null
+          state?: string | null
+          zip_code?: string | null
+          date_of_birth?: string | null
+          is_demo_seeded?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
-    Views: {
-      [_ in never]: never
-    }
+    Views: {}
     Functions: {
       match_documents: {
         Args: {
-          category_filter?: string
-          match_count: number
-          match_threshold: number
           query_embedding: string
+          match_threshold: number
+          match_count: number
         }
         Returns: {
-          content: string
           id: string
+          content: string
           metadata: Json
           similarity: number
         }[]
       }
     }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+    Enums: {}
+    CompositeTypes: {}
   }
 }
-
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
-
-export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const

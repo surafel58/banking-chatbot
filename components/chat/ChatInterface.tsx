@@ -9,6 +9,8 @@ import { MessageList } from './MessageList';
 import { WelcomeScreen } from './WelcomeScreen';
 import { QuickActionsPanel } from '@/components/quick-actions/QuickActionsPanel';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { useAuth } from '@/lib/auth/context';
 
 const WELCOME_MESSAGE = {
   id: 'welcome',
@@ -30,12 +32,50 @@ interface ChatInterfaceProps {
 }
 
 export function ChatInterface({ onClose }: ChatInterfaceProps) {
-  const { messages, sendMessage, error, status, stop } = useChat();
+  const { session, isAuthenticated } = useAuth();
+  const { messages, sendMessage, error, status, stop } = useChat({
+    // Pass the access token in fetch options for authenticated requests
+    fetch: session?.access_token
+      ? (url, options) =>
+          fetch(url, {
+            ...options,
+            headers: {
+              ...options?.headers,
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          })
+      : undefined,
+  });
 
   const [input, setInput] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isLoading = status === 'streaming' || status === 'submitted';
+
+  // Check for auth-required messages in tool responses
+  useEffect(() => {
+    if (!isAuthenticated && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      // Check if the AI response mentions signing in (from tool's requiresAuth response)
+      if (lastMessage.role === 'assistant' && 'parts' in lastMessage) {
+        // Extract text from parts
+        const textContent = lastMessage.parts
+          .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+          .map(part => part.text)
+          .join('');
+
+        if (
+          textContent.includes('Please sign in') ||
+          textContent.includes('sign in to') ||
+          textContent.includes('log in to')
+        ) {
+          // Show auth modal when AI prompts user to sign in
+          setAuthModalOpen(true);
+        }
+      }
+    }
+  }, [messages, isAuthenticated]);
 
   // Combine welcome message with chat messages
   const allMessages = useMemo(() => {
@@ -119,6 +159,9 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
       {/* Settings Panel */}
       <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* Auth Modal - shown when user needs to sign in for protected actions */}
+      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
     </div>
   );
 }

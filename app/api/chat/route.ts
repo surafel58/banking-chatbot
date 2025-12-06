@@ -1,8 +1,10 @@
 import { streamText, convertToModelMessages, UIMessage, stepCountIs } from 'ai';
 import { geminiModel } from '@/lib/ai/gemini';
 import { BANKING_SYSTEM_PROMPT } from '@/lib/ai/prompts';
-import { bankingTools } from '@/lib/tools/banking-tools';
+import { createBankingTools } from '@/lib/tools/banking-tools';
 import { intentDetector } from '@/lib/intents/detector';
+import { createClient } from '@supabase/supabase-js';
+import { headers } from 'next/headers';
 
 export const maxDuration = 30;
 
@@ -15,6 +17,35 @@ export async function POST(req: Request) {
         status: 400,
       });
     }
+
+    // Get user ID from session (if authenticated)
+    let userId: string | null = null;
+    try {
+      const headersList = await headers();
+      const authorization = headersList.get('authorization');
+
+      if (authorization?.startsWith('Bearer ')) {
+        const token = authorization.substring(7);
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+        const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        });
+
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user?.id || null;
+      }
+    } catch (authError) {
+      console.log('Auth check failed (user may be guest):', authError);
+    }
+
+    // Create banking tools with user context
+    const bankingTools = createBankingTools(userId);
 
     // Helper to extract text from message (handles both content and parts formats)
     const getMessageText = (message: UIMessage): string => {
@@ -60,14 +91,12 @@ export async function POST(req: Request) {
       maxRetries: 2,
       stopWhen: stepCountIs(5), // Allow up to 5 steps for agentic multi-step reasoning
 
-      onStepFinish: async ({ stepType, toolCalls, text }) => {
+      onStepFinish: async ({ toolCalls, text }) => {
         // Log each step for agentic behavior tracking
         if (toolCalls && toolCalls.length > 0) {
           console.log('[Agentic RAG] Step completed:', {
-            stepType,
             tools: toolCalls.map((tc) => ({
               name: tc.toolName,
-              args: tc.args,
             })),
           });
         }

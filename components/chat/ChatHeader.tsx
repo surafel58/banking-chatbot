@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { UserButton } from '@/components/auth/UserButton';
 
 interface ChatHeaderProps {
   onSettingsClick?: () => void;
@@ -33,6 +34,7 @@ export function ChatHeader({ onSettingsClick, onClose }: ChatHeaderProps) {
         </div>
       </div>
       <div className="flex items-center gap-1">
+        <UserButton />
         <ThemeToggle />
         {onSettingsClick && (
           <Button
