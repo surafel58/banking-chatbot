@@ -1,9 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { insertDocument } from '@/lib/rag/vectorStore';
+import { extractTextFromPdf } from '@/lib/utils/pdfExtractor';
+import { chunkText } from '@/lib/utils/textChunking';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_TYPES = ['application/pdf', 'text/plain', 'text/markdown'];
+
+// Process document: extract text, chunk, and index
+async function processDocument(
+  dataSourceId: string,
+  fileBuffer: ArrayBuffer,
+  fileName: string,
+  fileType: string
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+
+  try {
+    console.log(`Processing document: ${fileName}`);
+
+    // Extract text based on file type
+    let text: string;
+
+    if (fileType === 'application/pdf') {
+      text = await extractTextFromPdf(fileBuffer);
+    } else {
+      // TXT and MD files - decode buffer to string
+      text = new TextDecoder('utf-8').decode(fileBuffer);
+    }
+
+    if (!text || text.length < 10) {
+      throw new Error('Extracted content is too short or empty');
+    }
+
+    console.log(`Extracted ${text.length} characters from document`);
+
+    // Chunk the text
+    const chunks = chunkText(text, 1000);
+    console.log(`Created ${chunks.length} chunks for indexing`);
+
+    // Insert each chunk into vector store
+    let successCount = 0;
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const docId = await insertDocument(chunk, {
+        category: 'document',
+        source: fileName,
+        tags: [fileName, `chunk-${i + 1}`],
+      });
+      if (docId) {
+        successCount++;
+      }
+    }
+
+    console.log(`Successfully indexed ${successCount}/${chunks.length} chunks`);
+
+    // Update status to ready
+    await (supabase.from('data_sources') as any)
+      .update({ status: 'ready' })
+      .eq('id', dataSourceId);
+
+    console.log(`Document processing complete: ${fileName}`);
+  } catch (error) {
+    console.error(`Error processing document ${fileName}:`, error);
+
+    // Update status to error
+    await (supabase.from('data_sources') as any)
+      .update({
+        status: 'error',
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+      })
+      .eq('id', dataSourceId);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,17 +128,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Simulate processing (in production, this would trigger actual processing)
-    setTimeout(async () => {
-      try {
-        const supabaseInner = getSupabaseAdmin();
-        await (supabaseInner.from('data_sources') as any)
-          .update({ status: 'ready' })
-          .eq('id', id);
-      } catch (error) {
-        console.error('Error updating status:', error);
-      }
-    }, 3000);
+    // Get file buffer and process asynchronously (non-blocking)
+    const fileBuffer = await file.arrayBuffer();
+    processDocument(id, fileBuffer, file.name, fileType).catch((error) => {
+      console.error('Error processing document:', error);
+    });
 
     return NextResponse.json({
       message: 'Document uploaded successfully',

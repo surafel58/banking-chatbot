@@ -45,18 +45,10 @@ const quickActions = [
 
 export function WelcomeScreen({ onQuickAction, isLoading }: WelcomeScreenProps) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] py-8 px-4">
-      <div className="text-center mb-8">
-        <div className="mb-4 text-5xl">
-          <span role="img" aria-label="wave">👋</span>
-        </div>
-        <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-          Welcome to SecureBank!
-        </h2>
-        <p className="text-muted-foreground text-base md:text-lg">
-          How can I assist you today?
-        </p>
-      </div>
+    <div className="flex flex-col items-center py-6 px-4">
+      <p className="text-muted-foreground text-sm mb-4">
+        Quick actions to get started:
+      </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
         {quickActions.map((action) => {
