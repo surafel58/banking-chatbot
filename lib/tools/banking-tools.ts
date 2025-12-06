@@ -3,62 +3,95 @@ import { z } from 'zod';
 import { knowledgeRetriever } from '../rag/retriever';
 
 /**
- * Tool for searching the knowledge base
+ * Agentic RAG Tool: getInformation
+ *
+ * This is the primary knowledge retrieval tool following the AI SDK Agentic RAG pattern.
+ * The agent should call this tool to retrieve information from the knowledge base
+ * BEFORE answering questions about policies, products, procedures, or FAQs.
+ *
+ * Key behaviors:
+ * - Agent decides WHEN to search (not automatic)
+ * - Agent can call multiple times with refined queries
+ * - Agent evaluates results and decides if more info is needed
  */
-export const searchKnowledgeBase = tool({
-  description:
-    'Search the banking knowledge base for policies, products, FAQs, and procedures. Use this when the user asks general banking questions or needs information about bank services, policies, or products. ALWAYS provide the user\'s question or key terms as the query parameter.',
-  inputSchema: z.object({
-    query: z.string().describe('The user\'s question or search terms to find relevant information. REQUIRED. Example: "branch hours", "overdraft policy", "account types"'),
-    category: z
-      .enum(['policy', 'product', 'faq', 'procedure'])
-      .optional()
-      .describe('Optional category to narrow the search'),
+export const getInformation = tool({
+  description: `Retrieve information from the SecureBank knowledge base.
+IMPORTANT: You MUST call this tool before answering ANY questions about:
+- Bank policies (overdraft, fees, interest rates, etc.)
+- Products and services (account types, loans, credit cards)
+- Procedures (how to open account, transfer limits, etc.)
+- FAQs and general banking information
+- Branch hours and services
+
+If the initial search doesn't return relevant results, try:
+1. Rephrasing the query with different keywords
+2. Using a more specific or broader search term
+3. Searching for related concepts
+
+Only respond with "I don't have information about that" if multiple search attempts return no relevant results.`,
+  parameters: z.object({
+    query: z.string().describe('The search query to find relevant information. Be specific and use key terms from the user question.'),
   }),
-  execute: async ({ query, category }) => {
+  execute: async ({ query }) => {
     try {
-      console.log('searchKnowledgeBase called with:', { query, category, queryType: typeof query });
+      console.log('[Agentic RAG] getInformation called with:', { query });
 
       if (!query || typeof query !== 'string') {
         return {
           success: false,
           message: 'Invalid query provided.',
+          information: null,
         };
       }
 
       const documents = await knowledgeRetriever.retrieve(query, {
-        categoryFilter: category,
-        topK: 3,
-        threshold: 0.6,
+        topK: 4, // Get more results for agent to evaluate
+        threshold: 0.5, // Lower threshold to get more candidates
       });
 
-      console.log('Retrieved documents:', { count: documents.length, documents });
+      console.log('[Agentic RAG] Retrieved documents:', {
+        count: documents.length,
+        queries: query,
+        topScores: documents.slice(0, 3).map(d => d.similarity)
+      });
 
       if (documents.length === 0) {
-        console.log('No documents found, returning failure');
         return {
           success: false,
-          message: 'No relevant information found in the knowledge base.',
+          message: 'No relevant information found for this query. Try rephrasing or searching for related terms.',
+          information: null,
+          suggestion: 'Try a different search query or ask about a related topic.',
         };
       }
 
-      const context = knowledgeRetriever.formatContext(documents);
-      console.log('Tool returning context:', { success: true, contextLength: context.length, sourceCount: documents.length });
+      // Format information for the agent
+      const information = documents.map((doc, index) => ({
+        relevanceRank: index + 1,
+        content: doc.content,
+        source: doc.metadata?.source || 'Knowledge Base',
+        category: doc.metadata?.category || 'general',
+        similarityScore: doc.similarity?.toFixed(3) || 'N/A',
+      }));
 
       return {
         success: true,
-        context,
-        sourceCount: documents.length,
+        message: `Found ${documents.length} relevant document(s).`,
+        information,
+        totalResults: documents.length,
       };
     } catch (error) {
-      console.error('Knowledge search error:', error);
+      console.error('[Agentic RAG] Knowledge search error:', error);
       return {
         success: false,
-        message: 'Error searching knowledge base.',
+        message: 'Error searching knowledge base. Please try again.',
+        information: null,
       };
     }
   },
 });
+
+// Keep the old name as an alias for backward compatibility
+export const searchKnowledgeBase = getInformation;
 
 /**
  * Tool for card management operations
@@ -344,7 +377,10 @@ export const requestHumanAgent = tool({
 
 // Export all tools as an object for easy use in the chat API
 export const bankingTools = {
-  searchKnowledgeBase,
+  // Agentic RAG tool (primary knowledge retrieval)
+  getInformation,
+
+  // Banking operation tools
   cardManagement,
   checkBalance,
   findLocation,

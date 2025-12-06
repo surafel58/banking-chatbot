@@ -45,7 +45,12 @@ export async function POST(req: Request) {
     // Convert UI messages to model messages using the official SDK method
     const modelMessages = convertToModelMessages(messages);
 
-    // Stream the response with tools
+    // Stream the response with Agentic RAG behavior
+    // maxSteps (via stopWhen) allows the agent to:
+    // 1. Call getInformation to search knowledge base
+    // 2. Evaluate results and potentially search again with different terms
+    // 3. Call banking operation tools if needed
+    // 4. Generate final response
     const result = streamText({
       model: geminiModel,
       messages: modelMessages,
@@ -53,23 +58,37 @@ export async function POST(req: Request) {
       tools: bankingTools,
       temperature: 0.3,
       maxRetries: 2,
-      stopWhen: stepCountIs(5), // Allow up to 5 steps for tool calling and response generation
+      stopWhen: stepCountIs(5), // Allow up to 5 steps for agentic multi-step reasoning
 
-      onFinish: async ({ text, toolCalls, usage, finishReason }) => {
-        // Log the conversation (in production, save to database)
-        console.log('Conversation finished:', {
+      onStepFinish: async ({ stepType, toolCalls, text }) => {
+        // Log each step for agentic behavior tracking
+        if (toolCalls && toolCalls.length > 0) {
+          console.log('[Agentic RAG] Step completed:', {
+            stepType,
+            tools: toolCalls.map((tc) => ({
+              name: tc.toolName,
+              args: tc.args,
+            })),
+          });
+        }
+      },
+
+      onFinish: async ({ text, toolCalls, usage, finishReason, steps }) => {
+        // Log the complete conversation with agentic behavior details
+        console.log('[Agentic RAG] Conversation finished:', {
           intent: detectedIntent?.type,
           confidence: detectedIntent?.confidence,
+          totalSteps: steps?.length || 0,
           toolsUsed: toolCalls?.map((tc) => tc.toolName) || [],
           tokens: usage,
           finishReason,
-          generatedTextLength: text?.length || 0,
-          generatedText: text,
+          // Track if knowledge base was consulted
+          usedKnowledgeBase: toolCalls?.some((tc) => tc.toolName === 'getInformation') || false,
         });
 
         // Here you would typically:
         // 1. Save the conversation to database
-        // 2. Update analytics
+        // 2. Update analytics (track RAG usage patterns)
         // 3. Check if escalation is needed
         // 4. Log for audit purposes
       },
