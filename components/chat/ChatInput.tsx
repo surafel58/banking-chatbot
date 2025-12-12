@@ -4,15 +4,26 @@ import { Send, Square, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+type ChatStatus = 'submitted' | 'streaming' | 'ready' | 'error';
+
 interface ChatInputProps {
   input: string;
   setInput: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
   onStop: () => void;
+  status?: ChatStatus;
 }
 
-export function ChatInput({ input, setInput, onSubmit, isLoading, onStop }: ChatInputProps) {
+export function ChatInput({ input, setInput, onSubmit, isLoading, onStop, status }: ChatInputProps) {
+  // Get placeholder text based on status
+  const getPlaceholder = () => {
+    if (status === 'submitted') return 'Sending...';
+    if (status === 'streaming') return 'AI is responding...';
+    if (status === 'error') return 'Error occurred. Try again...';
+    return 'Type your message...';
+  };
+
   return (
     <div className="w-full space-y-3">
       <form onSubmit={onSubmit} className="flex gap-2">
@@ -20,7 +31,7 @@ export function ChatInput({ input, setInput, onSubmit, isLoading, onStop }: Chat
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message..."
+          placeholder={getPlaceholder()}
           disabled={isLoading}
           className="flex-1 h-12 text-base"
           autoComplete="off"

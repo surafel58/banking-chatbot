@@ -11,6 +11,7 @@ import { QuickActionsPanel } from '@/components/quick-actions/QuickActionsPanel'
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { useAuth } from '@/lib/auth/context';
+import { toast } from 'sonner';
 
 const WELCOME_MESSAGE = {
   id: 'welcome',
@@ -33,23 +34,107 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const { session, isAuthenticated } = useAuth();
-  const { messages, sendMessage, error, status, stop } = useChat({
-    // Pass the access token in fetch options for authenticated requests
-    fetch: session?.access_token
-      ? (url, options) =>
-          fetch(url, {
-            ...options,
-            headers: {
-              ...options?.headers,
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          })
-      : undefined,
+  const prevAuthRef = useRef(isAuthenticated);
+
+  // Get current token
+  const accessToken = session?.access_token;
+
+  // Debug log on mount
+  useEffect(() => {
+    console.log('[ChatInterface] Token status:', accessToken ? 'present' : 'missing');
+  }, [accessToken]);
+
+  // Use stable chat ID - conversation persists across auth changes
+  // Token is passed at call-time so we don't need to reset the chat
+  const chatId = 'banking-assistant-chat';
+
+  const { messages, sendMessage: originalSendMessage, error, status, stop, setMessages } = useChat({
+    api: '/api/chat',
+    id: chatId, // Stable ID for session persistence
+
+    // Throttle UI updates for smoother streaming experience
+    experimental_throttle: 50,
+
+    // Handle errors with user-friendly notifications
+    onError: (error) => {
+      console.error('[Chat] Error:', error);
+      if (error.message?.includes('rate limit') || error.message?.includes('quota')) {
+        toast.error('Service temporarily unavailable. Please try again in a moment.');
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        toast.error('Something went wrong. Please try again.');
+      }
+    },
+
+    // Log conversation completion for analytics
+    onFinish: (message) => {
+      console.log('[Chat] Conversation finished:', {
+        messageId: message.id,
+        role: message.role,
+        hasToolInvocations: 'parts' in message && message.parts?.some(p => p.type === 'tool-invocation'),
+        timestamp: new Date().toISOString(),
+      });
+    },
   });
+
+  // Wrapper that includes auth token in every request
+  const sendMessageWithAuth = (message: { text: string }) => {
+    console.log('[ChatInterface] Sending message with token:', accessToken ? 'present' : 'missing');
+    // Pass message text as string, with body containing auth token
+    originalSendMessage(message, {
+      body: { authToken: accessToken || null },
+    });
+  };
 
   const [input, setInput] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  // Detect auth state changes and clean up conversation
+  useEffect(() => {
+    if (prevAuthRef.current === false && isAuthenticated === true) {
+      // User just signed in - filter out old "sign in required" messages to prevent LLM confusion
+      // Then add a message confirming they're now authenticated
+      setMessages((prev) => {
+        // Helper to check if a message is about signing in
+        const isSignInMessage = (msg: typeof prev[0]) => {
+          if (msg.role !== 'assistant') return false;
+
+          // Check text content in parts
+          if ('parts' in msg && msg.parts) {
+            const textContent = msg.parts
+              .filter((part: { type: string }) => part.type === 'text')
+              .map((part: { type: string; text?: string }) => part.text || '')
+              .join('');
+            return textContent.includes('sign in') || textContent.includes('Sign in') || textContent.includes('log in');
+          }
+
+          // Check content string
+          if (msg.content) {
+            return msg.content.includes('sign in') || msg.content.includes('Sign in') || msg.content.includes('log in');
+          }
+
+          return false;
+        };
+
+        // Filter out sign-in prompts from history
+        const filtered = prev.filter((msg) => !isSignInMessage(msg));
+
+        // Add confirmation message
+        const authMessage = {
+          id: `auth-${Date.now()}`,
+          role: 'assistant' as const,
+          content: `Great! You're now signed in. I can now access your account information. Feel free to ask about your balance, transactions, cards, or try any banking operations again!`,
+          createdAt: new Date(),
+        };
+
+        return [...filtered, authMessage];
+      });
+      toast.info('Banking features unlocked!');
+    }
+    prevAuthRef.current = isAuthenticated;
+  }, [isAuthenticated, setMessages]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isLoading = status === 'streaming' || status === 'submitted';
 
@@ -95,12 +180,12 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    sendMessage({ text: input.trim() });
+    sendMessageWithAuth({ text: input.trim() });
     setInput('');
   };
 
   const handleQuickAction = (message: string) => {
-    sendMessage({ text: message });
+    sendMessageWithAuth({ text: message });
   };
 
   return (
@@ -147,6 +232,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           onSubmit={handleSubmit}
           isLoading={isLoading}
           onStop={stop}
+          status={status as 'submitted' | 'streaming' | 'ready' | 'error'}
         />
       </div>
 

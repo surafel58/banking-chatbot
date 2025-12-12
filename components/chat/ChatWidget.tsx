@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  // Stable key - no longer reset on auth change since we pass token at call-time
+  // This preserves conversation history when user signs in mid-conversation
 
   return (
     <>
@@ -39,7 +41,7 @@ export function ChatWidget() {
             : 'opacity-0 pointer-events-none'
         )}
       >
-        {/* Chat Interface - Only render when open for performance */}
+        {/* Chat Interface - conversation persists across auth changes */}
         {isOpen && <ChatInterface onClose={() => setIsOpen(false)} />}
       </div>
     </>

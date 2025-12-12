@@ -4,13 +4,13 @@ import { BANKING_SYSTEM_PROMPT } from '@/lib/ai/prompts';
 import { createBankingTools } from '@/lib/tools/banking-tools';
 import { intentDetector } from '@/lib/intents/detector';
 import { createClient } from '@supabase/supabase-js';
-import { headers } from 'next/headers';
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {
-    const { messages }: { messages: UIMessage[] } = await req.json();
+    const body = await req.json();
+    const { messages, authToken }: { messages: UIMessage[]; authToken?: string } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return new Response('Invalid request: messages array required', {
@@ -18,31 +18,38 @@ export async function POST(req: Request) {
       });
     }
 
-    // Get user ID from session (if authenticated)
+    // Get user ID from token (passed in body from client)
     let userId: string | null = null;
     try {
-      const headersList = await headers();
-      const authorization = headersList.get('authorization');
+      console.log('[Chat API] Auth token in body:', authToken ? 'present' : 'missing');
 
-      if (authorization?.startsWith('Bearer ')) {
-        const token = authorization.substring(7);
+      if (authToken) {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
         const supabase = createClient(supabaseUrl, supabaseAnonKey, {
           global: {
             headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${authToken}`,
             },
           },
         });
 
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+        console.log('[Chat API] User lookup result:', {
+          userId: user?.id,
+          email: user?.email,
+          error: userError?.message
+        });
+
         userId = user?.id || null;
       }
     } catch (authError) {
       console.log('Auth check failed (user may be guest):', authError);
     }
+
+    console.log('[Chat API] Final userId for tools:', userId);
 
     // Create banking tools with user context
     const bankingTools = createBankingTools(userId);

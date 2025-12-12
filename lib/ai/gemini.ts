@@ -1,5 +1,5 @@
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Lazy initialization to allow environment variables to be loaded first
 let _google: ReturnType<typeof createGoogleGenerativeAI> | null = null;
@@ -8,7 +8,9 @@ let _genAI: GoogleGenerativeAI | null = null;
 function getApiKey(): string {
   const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!key) {
-    throw new Error('Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable');
+    throw new Error(
+      "Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable"
+    );
   }
   return key;
 }
@@ -37,8 +39,8 @@ export const genAI = new Proxy({} as GoogleGenerativeAI, {
 }) as GoogleGenerativeAI;
 
 // Model configurations
-export const CHAT_MODEL = 'gemini-2.5-flash';
-export const EMBEDDING_MODEL = 'text-embedding-004';
+export const CHAT_MODEL = "gemini-2.5-flash-lite";
+export const EMBEDDING_MODEL = "text-embedding-004";
 
 // Lazy-loaded chat model - directly export the model instance
 let _geminiModel: any = null;
