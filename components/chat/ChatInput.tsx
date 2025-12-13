@@ -1,6 +1,6 @@
 'use client';
 
-import { Send, Square, Shield, RefreshCw } from 'lucide-react';
+import { ArrowUp, CircleStop, Shield, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -44,46 +44,46 @@ export function ChatInput({
 
   return (
     <div className="w-full space-y-3">
-      <form onSubmit={onSubmit} className="flex gap-2">
+      <form onSubmit={onSubmit} className="flex gap-2 items-center">
         <Input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={getPlaceholder()}
           disabled={isLoading}
-          className="flex-1 h-12 text-base"
+          className="flex-1 h-12 text-base rounded-full px-5"
           autoComplete="off"
         />
-        {/* Show different buttons based on status (AI SDK UI pattern) */}
+        {/* Modern circular action buttons */}
         {isLoading ? (
           <Button
             type="button"
-            variant="destructive"
             size="icon"
-            className="h-12 w-12 shrink-0"
             onClick={onStop}
+            className="h-12 w-12 shrink-0 rounded-full bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg shadow-red-500/25 transition-all duration-200 hover:scale-105 active:scale-95"
           >
-            <Square className="h-4 w-4" />
+            <CircleStop className="h-5 w-5" />
             <span className="sr-only">Stop generating</span>
           </Button>
         ) : hasError && onRetry ? (
           <Button
             type="button"
-            variant="outline"
-            className="h-12 px-6 shrink-0"
+            size="icon"
             onClick={onRetry}
+            className="h-12 w-12 shrink-0 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25 transition-all duration-200 hover:scale-105 active:scale-95"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
+            <RotateCcw className="h-5 w-5" />
+            <span className="sr-only">Retry</span>
           </Button>
         ) : (
           <Button
             type="submit"
+            size="icon"
             disabled={!input.trim()}
-            className="h-12 px-6 shrink-0"
+            className="h-12 w-12 shrink-0 rounded-full bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:shadow-none disabled:hover:scale-100"
           >
-            <Send className="h-4 w-4 mr-2" />
-            Send
+            <ArrowUp className="h-5 w-5" />
+            <span className="sr-only">Send message</span>
           </Button>
         )}
       </form>
