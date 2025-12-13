@@ -1,9 +1,10 @@
 'use client';
 
-import { Send, Square, Shield } from 'lucide-react';
+import { Send, Square, Shield, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+// AI SDK UI status types
 type ChatStatus = 'submitted' | 'streaming' | 'ready' | 'error';
 
 interface ChatInputProps {
@@ -12,16 +13,33 @@ interface ChatInputProps {
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
   onStop: () => void;
-  status?: ChatStatus;
+  status: ChatStatus;
+  hasError?: boolean;
+  onRetry?: () => void;
 }
 
-export function ChatInput({ input, setInput, onSubmit, isLoading, onStop, status }: ChatInputProps) {
-  // Get placeholder text based on status
+export function ChatInput({
+  input,
+  setInput,
+  onSubmit,
+  isLoading,
+  onStop,
+  status,
+  hasError,
+  onRetry,
+}: ChatInputProps) {
+  // Get placeholder text based on status (AI SDK UI pattern)
   const getPlaceholder = () => {
-    if (status === 'submitted') return 'Sending...';
-    if (status === 'streaming') return 'AI is responding...';
-    if (status === 'error') return 'Error occurred. Try again...';
-    return 'Type your message...';
+    switch (status) {
+      case 'submitted':
+        return 'Sending...';
+      case 'streaming':
+        return 'AI is responding...';
+      case 'error':
+        return 'Error occurred. Try again...';
+      default:
+        return 'Type your message...';
+    }
   };
 
   return (
@@ -36,6 +54,7 @@ export function ChatInput({ input, setInput, onSubmit, isLoading, onStop, status
           className="flex-1 h-12 text-base"
           autoComplete="off"
         />
+        {/* Show different buttons based on status (AI SDK UI pattern) */}
         {isLoading ? (
           <Button
             type="button"
@@ -46,6 +65,16 @@ export function ChatInput({ input, setInput, onSubmit, isLoading, onStop, status
           >
             <Square className="h-4 w-4" />
             <span className="sr-only">Stop generating</span>
+          </Button>
+        ) : hasError && onRetry ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-12 px-6 shrink-0"
+            onClick={onRetry}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
           </Button>
         ) : (
           <Button
