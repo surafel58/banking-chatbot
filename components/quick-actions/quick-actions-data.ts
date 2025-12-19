@@ -14,6 +14,8 @@ export interface QuickAction {
   label: string;
   message: string;
   color: string;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 export const quickActions: QuickAction[] = [
@@ -23,6 +25,8 @@ export const quickActions: QuickAction[] = [
     label: 'Balance',
     message: 'Check my account balance',
     color: 'text-green-500',
+    disabled: true,
+    disabledReason: 'Coming soon',
   },
   {
     id: 'transfer',
@@ -30,6 +34,8 @@ export const quickActions: QuickAction[] = [
     label: 'Transfer',
     message: 'I want to transfer money',
     color: 'text-blue-500',
+    disabled: true,
+    disabledReason: 'Coming soon',
   },
   {
     id: 'transactions',
@@ -37,6 +43,8 @@ export const quickActions: QuickAction[] = [
     label: 'History',
     message: 'Show my recent transactions',
     color: 'text-purple-500',
+    disabled: true,
+    disabledReason: 'Coming soon',
   },
   {
     id: 'lost-card',

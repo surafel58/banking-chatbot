@@ -36,10 +36,12 @@ export function QuickActionsPanel({ onAction, isLoading, visible }: QuickActions
                     key={action.id}
                     action={action}
                     onClick={() => {
-                      onAction(action.message);
-                      setIsExpanded(false);
+                      if (!action.disabled) {
+                        onAction(action.message);
+                        setIsExpanded(false);
+                      }
                     }}
-                    disabled={isLoading}
+                    disabled={isLoading || action.disabled}
                   />
                 ))}
               </div>
